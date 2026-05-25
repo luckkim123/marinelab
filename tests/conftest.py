@@ -1,0 +1,65 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers.
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+"""Shared pytest fixtures: run marinelab.core tests without Isaac Sim.
+
+The generic mock-everything approach breaks physics tests because
+quat_apply_inverse must actually rotate vectors. This conftest installs a
+correct quaternion implementation while stubbing the rest of isaaclab.
+"""
+
+import sys
+import types
+
+import torch
+
+
+def _quat_apply_inverse(quat: torch.Tensor, vec: torch.Tensor) -> torch.Tensor:
+    """Rotate vec by the inverse of quat (w, x, y, z). Matches isaaclab.utils.math."""
+    q = quat
+    w, x, y, z = q[..., 0], q[..., 1], q[..., 2], q[..., 3]
+    # inverse rotation = conjugate for unit quat: (w, -x, -y, -z)
+    # v' = v + 2 * q_conj_vec x (q_conj_vec x v + w_conj * v), w_conj = w
+    qvec = torch.stack([-x, -y, -z], dim=-1)
+    uv = torch.cross(qvec, vec, dim=-1)
+    uuv = torch.cross(qvec, uv, dim=-1)
+    return vec + 2.0 * (w.unsqueeze(-1) * uv + uuv)
+
+
+def _quat_from_euler_xyz(roll, pitch, yaw):
+    cr, sr = torch.cos(roll * 0.5), torch.sin(roll * 0.5)
+    cp, sp = torch.cos(pitch * 0.5), torch.sin(pitch * 0.5)
+    cy, sy = torch.cos(yaw * 0.5), torch.sin(yaw * 0.5)
+    w = cr * cp * cy + sr * sp * sy
+    x = sr * cp * cy - cr * sp * sy
+    y = cr * sp * cy + sr * cp * sy
+    z = cr * cp * sy - sr * sp * cy
+    return torch.stack([w, x, y, z], dim=-1)
+
+
+def _configclass(cls):
+    """Minimal stand-in for isaaclab.utils.configclass.
+
+    The real one auto-generates __init__ from annotated class attributes with
+    defaults. Our cfg classes only use simple typed defaults, so dataclass
+    semantics suffice for tests.
+    """
+    import dataclasses
+
+    return dataclasses.dataclass(cls)
+
+
+def _install_isaaclab_mocks():
+    if "isaaclab" in sys.modules:
+        return
+    for name in ["isaaclab", "isaaclab.utils", "isaaclab.utils.math"]:
+        sys.modules[name] = types.ModuleType(name)
+    sys.modules["isaaclab.utils"].configclass = _configclass
+    math_mod = sys.modules["isaaclab.utils.math"]
+    math_mod.quat_apply_inverse = _quat_apply_inverse
+    math_mod.quat_from_euler_xyz = _quat_from_euler_xyz
+
+
+_install_isaaclab_mocks()
