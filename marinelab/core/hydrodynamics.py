@@ -292,6 +292,8 @@ class HydrodynamicsModel:
         if cfg.volume is not None:
             return cfg.volume
 
+        fallback = 0.01  # default volume (m^3) when neither config nor auto-calc yields a value
+
         if articulation_prim_path is not None:
             from marinelab.core.volume import compute_collision_volume
 
@@ -301,15 +303,17 @@ class HydrodynamicsModel:
                 return volume
             warnings.warn(
                 f"Auto-calculated volume is {volume} m^3 for {body_path}. "
-                "Using default 0.01 m^3. Consider setting volume explicitly in config.",
+                f"Falling back to default volume {fallback} m^3 (buoyancy = rho*g*{fallback}). "
+                "Consider setting volume explicitly in config.",
                 stacklevel=3,
             )
         else:
             warnings.warn(
-                "Volume not specified and no articulation_prim_path provided. Using default 0.01 m^3.",
+                f"Volume not specified and no articulation_prim_path provided. "
+                f"Falling back to default volume {fallback} m^3 (buoyancy = rho*g*{fallback}).",
                 stacklevel=3,
             )
-        return 0.01
+        return fallback
 
     def compute_forces(
         self,

@@ -138,14 +138,3 @@ class TaskBase(ABC):
             Dictionary containing goal state tensors.
         """
         return {}
-
-    def step(self, dt: float) -> None:
-        """Update task state per step (for time-varying tasks).
-
-        Default implementation does nothing. Override for trajectory tracking
-        or other time-dependent tasks.
-
-        Args:
-            dt: Time step duration.
-        """
-        pass

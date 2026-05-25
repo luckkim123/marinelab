@@ -188,34 +188,3 @@ class RewardManager:
             self._episode_sums[name][env_ids] = 0.0
 
         return sums_before_reset
-
-    def get_term_value(self, name: str) -> torch.Tensor:
-        """Get the current episode sum for a specific term.
-
-        Args:
-            name: Name of the reward term.
-
-        Returns:
-            Episode sum tensor for the term.
-        """
-        return self._episode_sums[name]
-
-    def set_term_weight(self, name: str, weight: float) -> None:
-        """Update the weight of a reward term at runtime.
-
-        Args:
-            name: Name of the reward term.
-            weight: New weight value.
-        """
-        for i, term_name in enumerate(self._term_names):
-            if term_name == name:
-                # Create new config with updated weight
-                old_cfg = self._term_cfgs[i]
-                self._term_cfgs[i] = RewardTermCfg(
-                    func=old_cfg.func,
-                    weight=weight,
-                    params=old_cfg.params,
-                    enabled=old_cfg.enabled,
-                )
-                return
-        raise KeyError(f"Reward term '{name}' not found in active terms.")

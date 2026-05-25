@@ -17,7 +17,6 @@ from .reward_terms import (
     alive_bonus,
     angular_velocity_penalty,
     linear_velocity_penalty,
-    orientation_upright,
     orientation_upright_exp,
     position_tracking_exp,
 )
@@ -28,7 +27,6 @@ __all__ = [
     "RewardTermCfg",
     # UUV reward terms
     "position_tracking_exp",
-    "orientation_upright",
     "orientation_upright_exp",
     "linear_velocity_penalty",
     "angular_velocity_penalty",

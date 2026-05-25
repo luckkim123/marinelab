@@ -58,37 +58,6 @@ def position_tracking_exp(
     return torch.exp(-distance / exp_scale)
 
 
-def orientation_upright(
-    robot: Articulation,
-    **kwargs,
-) -> torch.Tensor:
-    """Upright orientation reward (linear).
-
-    Computes how aligned the robot's body Z-axis is with the world Z-axis.
-    Returns value in [0, 1] where 1 = perfectly upright, 0 = upside down.
-
-    Note: This is a gentle reward. For stricter orientation control,
-    use orientation_upright_exp which penalizes tilting more aggressively.
-
-    Args:
-        robot: Robot articulation for state access.
-
-    Returns:
-        Reward values. Shape: (num_envs,).
-    """
-    num_envs = robot.data.root_pos_w.shape[0]
-    device = robot.data.root_pos_w.device
-
-    # World up vector
-    up_w = torch.tensor([[0.0, 0.0, 1.0]], device=device).expand(num_envs, -1)
-
-    # Transform to body frame and check alignment
-    up_b = quat_apply_inverse(robot.data.root_quat_w, up_w)
-
-    # Map z-component from [-1, 1] to [0, 1]
-    return (up_b[:, 2] + 1.0) / 2.0
-
-
 def orientation_upright_exp(
     robot: Articulation,
     exp_scale: float = 0.5,

@@ -40,7 +40,7 @@ from .rewards import (
     orientation_upright_exp,
     position_tracking_exp,
 )
-from .tasks import AttitudeTask, AttitudeTaskCfg, HoverTask, HoverTaskCfg, TaskBase, TaskBaseCfg
+from .tasks import AttitudeTask, AttitudeTaskCfg, HoverTask, TaskBase
 
 if TYPE_CHECKING:
     pass
@@ -140,6 +140,9 @@ class BlueROVEnv(DirectRLEnv):
         self._hydro_forces = torch.zeros(self.num_envs, 3, device=self.device)
         self._hydro_torques = torch.zeros(self.num_envs, 3, device=self.device)
 
+        # Cached world up vector for the body-frame up observation (hot path)
+        self._up_w = torch.tensor([[0.0, 0.0, 1.0]], device=self.device).expand(self.num_envs, -1)
+
         # Setup debug visualization
         self.set_debug_vis(self.cfg.debug_vis)
 
@@ -147,43 +150,16 @@ class BlueROVEnv(DirectRLEnv):
         """Create task instance from environment configuration.
 
         The task type is determined by the task configuration class:
-        - HoverTaskCfg -> HoverTask
         - AttitudeTaskCfg -> AttitudeTask
-
-        For backward compatibility, if no task config is provided,
-        defaults to HoverTask using legacy goal_pos_range/initial_height.
+        - HoverTaskCfg (or any other TaskBaseCfg) -> HoverTask
 
         Returns:
             Task instance matching the configuration.
         """
         task_cfg = self.cfg.task
-
-        # Backward compatibility: create HoverTaskCfg from legacy parameters
-        if (
-            task_cfg is None
-            or isinstance(task_cfg, TaskBaseCfg)
-            and not isinstance(task_cfg, (HoverTaskCfg, AttitudeTaskCfg))
-        ):
-            task_cfg = HoverTaskCfg(
-                goal_pos_range=self.cfg.goal_pos_range,
-                initial_height=self.cfg.initial_height,
-            )
-
-        # Create task based on config type
         if isinstance(task_cfg, AttitudeTaskCfg):
             return AttitudeTask(cfg=task_cfg, num_envs=self.num_envs, device=self.device)
-        elif isinstance(task_cfg, HoverTaskCfg):
-            return HoverTask(cfg=task_cfg, num_envs=self.num_envs, device=self.device)
-        else:
-            # Default to HoverTask for any TaskBaseCfg
-            return HoverTask(
-                cfg=HoverTaskCfg(
-                    goal_pos_range=task_cfg.goal_pos_range,
-                    initial_height=task_cfg.initial_height,
-                ),
-                num_envs=self.num_envs,
-                device=self.device,
-            )
+        return HoverTask(cfg=task_cfg, num_envs=self.num_envs, device=self.device)
 
     def _build_reward_cfg(self) -> dict[str, RewardTermCfg]:
         """Build reward configuration from environment config.
@@ -294,8 +270,7 @@ class BlueROVEnv(DirectRLEnv):
         root_ang_vel_b = self._robot.data.root_ang_vel_b
 
         # Up vector in body frame for orientation
-        up_w = torch.tensor([[0.0, 0.0, 1.0]], device=self.device).expand(self.num_envs, -1)
-        up_b = quat_apply_inverse(root_quat_w, up_w)
+        up_b = quat_apply_inverse(root_quat_w, self._up_w)
 
         # Task-specific goal observations
         goal_obs = self._task.get_goal_observations(self._robot)
@@ -428,46 +403,26 @@ class BlueROVEnv(DirectRLEnv):
         # Apply initial pose randomization
         if self.cfg.randomization.enable:
             num_reset = len(env_ids)
+            r = self.cfg.randomization
 
-            pos_x = (
-                torch.rand(num_reset, device=self.device)
-                * (self.cfg.randomization.position_x_range[1] - self.cfg.randomization.position_x_range[0])
-                + self.cfg.randomization.position_x_range[0]
+            pos_lo = torch.tensor(
+                [r.position_x_range[0], r.position_y_range[0], r.position_z_range[0]], device=self.device
             )
-            pos_y = (
-                torch.rand(num_reset, device=self.device)
-                * (self.cfg.randomization.position_y_range[1] - self.cfg.randomization.position_y_range[0])
-                + self.cfg.randomization.position_y_range[0]
+            pos_hi = torch.tensor(
+                [r.position_x_range[1], r.position_y_range[1], r.position_z_range[1]], device=self.device
             )
-            pos_z = (
-                torch.rand(num_reset, device=self.device)
-                * (self.cfg.randomization.position_z_range[1] - self.cfg.randomization.position_z_range[0])
-                + self.cfg.randomization.position_z_range[0]
-            )
-            default_root_state[:, 0] += pos_x
-            default_root_state[:, 1] += pos_y
-            default_root_state[:, 2] = pos_z
+            pos = torch.rand(num_reset, 3, device=self.device) * (pos_hi - pos_lo) + pos_lo
+            default_root_state[:, 0] += pos[:, 0]
+            default_root_state[:, 1] += pos[:, 1]
+            default_root_state[:, 2] = pos[:, 2]
 
-            roll = (
-                torch.rand(num_reset, device=self.device)
-                * (self.cfg.randomization.roll_range[1] - self.cfg.randomization.roll_range[0])
-                + self.cfg.randomization.roll_range[0]
-            )
-            pitch = (
-                torch.rand(num_reset, device=self.device)
-                * (self.cfg.randomization.pitch_range[1] - self.cfg.randomization.pitch_range[0])
-                + self.cfg.randomization.pitch_range[0]
-            )
-            yaw = (
-                torch.rand(num_reset, device=self.device)
-                * (self.cfg.randomization.yaw_range[1] - self.cfg.randomization.yaw_range[0])
-                + self.cfg.randomization.yaw_range[0]
-            )
-
-            random_quat = quat_from_euler_xyz(roll, pitch, yaw)
+            rot_lo = torch.tensor([r.roll_range[0], r.pitch_range[0], r.yaw_range[0]], device=self.device)
+            rot_hi = torch.tensor([r.roll_range[1], r.pitch_range[1], r.yaw_range[1]], device=self.device)
+            rpy = torch.rand(num_reset, 3, device=self.device) * (rot_hi - rot_lo) + rot_lo
+            random_quat = quat_from_euler_xyz(rpy[:, 0], rpy[:, 1], rpy[:, 2])
             default_root_state[:, 3:7] = quat_mul(default_root_state[:, 3:7], random_quat)
         else:
-            default_root_state[:, 2] = self.cfg.initial_height
+            default_root_state[:, 2] = self.cfg.task.initial_height
 
         self._robot.write_root_pose_to_sim(default_root_state[:, :7], env_ids)
         self._robot.write_root_velocity_to_sim(default_root_state[:, 7:], env_ids)
@@ -502,7 +457,7 @@ class BlueROVEnv(DirectRLEnv):
         self.goal_pos_visualizer.visualize(goal_pos)
 
         # Visualize ocean current
-        current_vel = self._hydro._current_velocity[:, :3]
+        current_vel = self._hydro.current.velocity_w[:, :3]
         current_magnitude = torch.linalg.norm(current_vel, dim=1, keepdim=True)
         current_scale = current_magnitude.clamp(min=0.01) * 2.0
 
