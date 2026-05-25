@@ -388,19 +388,28 @@ class BlueROVEnv(DirectRLEnv):
         # Apply domain randomization
         # Note: mass_scale removed - weight is now handled by PhysX (disable_gravity=False)
         if self.cfg.randomization.enable:
-            self._hydro.randomize_parameters(
-                env_ids=env_ids,
-                added_mass_scale=self.cfg.randomization.added_mass_scale,
-                linear_damping_scale=self.cfg.randomization.linear_damping_scale,
-                quadratic_damping_scale=self.cfg.randomization.quadratic_damping_scale,
-                volume_scale=self.cfg.randomization.volume_scale,
-                cob_offset_z=self.cfg.randomization.cob_offset_z,
-                inertia_scale=self.cfg.randomization.inertia_scale,
+            from .mdp.events import randomize_hydrodynamics
+
+            r = self.cfg.randomization
+            randomize_hydrodynamics(
+                self,
+                env_ids,
+                added_mass_scale=r.added_mass_scale,
+                linear_damping_scale=r.linear_damping_scale,
+                quadratic_damping_scale=r.quadratic_damping_scale,
+                volume_scale=r.volume_scale,
+                cob_offset_x=r.cob_offset_x,
+                cob_offset_y=r.cob_offset_y,
+                cob_offset_z=r.cob_offset_z,
+                cog_offset_x=r.cog_offset_x,
+                cog_offset_y=r.cog_offset_y,
+                cog_offset_z=r.cog_offset_z,
+                inertia_scale=r.inertia_scale,
             )
             self._thruster.randomize_parameters(
                 env_ids=env_ids,
-                thrust_coeff_scale=self.cfg.randomization.thrust_coefficient_scale,
-                time_constant_scale=self.cfg.randomization.time_constant_scale,
+                thrust_coeff_scale=r.thrust_coefficient_scale,
+                time_constant_scale=r.time_constant_scale,
             )
 
         # Randomize ocean current

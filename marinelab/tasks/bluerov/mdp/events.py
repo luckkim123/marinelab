@@ -77,49 +77,30 @@ def randomize_hydrodynamics(
     num_envs = len(env_ids)
     device = env.device
 
-    # Helper to generate uniform random in [lo, hi]
-    def rand_range(shape: tuple, lo: float, hi: float) -> torch.Tensor:
-        return torch.rand(shape, device=device) * (hi - lo) + lo
+    # Scale-based randomization via the core API (base * uniform(lo, hi)).
+    hydro.scale_parameters(
+        env_ids,
+        added_mass=added_mass_scale,
+        linear_damping=linear_damping_scale,
+        quadratic_damping=quadratic_damping_scale,
+        volume=volume_scale,
+        rigid_body_inertia=inertia_scale,
+    )
 
-    # Added mass (scale each of 6 DOF)
-    am_scales = rand_range((num_envs, 6), added_mass_scale[0], added_mass_scale[1])
-    base_am = torch.tensor(hydro.cfg.added_mass, dtype=torch.float32, device=device)
-    hydro.added_mass_matrix[env_ids] = torch.diag_embed(base_am.unsqueeze(0) * am_scales)
+    # Offset-based randomization for CoB / CoG (base + uniform offset).
+    base = hydro.base_parameters
 
-    # Linear damping
-    ld_scales = rand_range((num_envs, 6), linear_damping_scale[0], linear_damping_scale[1])
-    base_ld = torch.tensor(hydro.cfg.linear_damping, dtype=torch.float32, device=device)
-    hydro.linear_damping[env_ids] = base_ld.unsqueeze(0) * ld_scales
+    def _offset(center, ranges):
+        out = center[env_ids].clone()
+        for axis, (lo, hi) in enumerate(ranges):
+            out[:, axis] = out[:, axis] + (torch.rand(num_envs, device=device) * (hi - lo) + lo)
+        return out
 
-    # Quadratic damping
-    qd_scales = rand_range((num_envs, 6), quadratic_damping_scale[0], quadratic_damping_scale[1])
-    base_qd = torch.tensor(hydro.cfg.quadratic_damping, dtype=torch.float32, device=device)
-    hydro.quadratic_damping[env_ids] = base_qd.unsqueeze(0) * qd_scales
-
-    # Volume
-    base_volume = hydro.volume[0].item()
-    hydro.volume[env_ids] = base_volume * rand_range((num_envs,), volume_scale[0], volume_scale[1])
-    hydro.update_buoyancy_force(env_ids)
-
-    # Center of Buoyancy (offset from base)
-    base_cob = torch.tensor(hydro.cfg.center_of_buoyancy, dtype=torch.float32, device=device)
-    hydro.center_of_buoyancy[env_ids, 0] = base_cob[0] + rand_range((num_envs,), *cob_offset_x)
-    hydro.center_of_buoyancy[env_ids, 1] = base_cob[1] + rand_range((num_envs,), *cob_offset_y)
-    hydro.center_of_buoyancy[env_ids, 2] = base_cob[2] + rand_range((num_envs,), *cob_offset_z)
-
-    # Center of Gravity (offset from base)
-    base_cog = torch.tensor(hydro.cfg.center_of_gravity, dtype=torch.float32, device=device)
-    hydro.center_of_gravity[env_ids, 0] = base_cog[0] + rand_range((num_envs,), *cog_offset_x)
-    hydro.center_of_gravity[env_ids, 1] = base_cog[1] + rand_range((num_envs,), *cog_offset_y)
-    hydro.center_of_gravity[env_ids, 2] = base_cog[2] + rand_range((num_envs,), *cog_offset_z)
-
-    # Rigid body inertia
-    inertia_scales = rand_range((num_envs, 3), inertia_scale[0], inertia_scale[1])
-    if hydro.cfg.rigid_body_inertia is not None:
-        base_inertia = torch.tensor(hydro.cfg.rigid_body_inertia, dtype=torch.float32, device=device)
-    else:
-        base_inertia = torch.tensor(hydro.cfg.added_mass[3:6], dtype=torch.float32, device=device) * 0.5
-    hydro.rigid_body_inertia[env_ids] = base_inertia.unsqueeze(0) * inertia_scales
+    hydro.set_parameters(
+        env_ids,
+        center_of_buoyancy=_offset(base.center_of_buoyancy, (cob_offset_x, cob_offset_y, cob_offset_z)),
+        center_of_gravity=_offset(base.center_of_gravity, (cog_offset_x, cog_offset_y, cog_offset_z)),
+    )
 
 
 def randomize_thruster_params(
