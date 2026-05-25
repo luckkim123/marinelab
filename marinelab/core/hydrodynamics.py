@@ -293,7 +293,7 @@ class HydrodynamicsModel:
             return cfg.volume
 
         if articulation_prim_path is not None:
-            from marinelab.utils.volume import compute_collision_volume
+            from marinelab.core.volume import compute_collision_volume
 
             body_path = f"{articulation_prim_path}/{cfg.body_name}"
             volume = compute_collision_volume(body_path)
