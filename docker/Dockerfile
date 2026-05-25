@@ -10,6 +10,15 @@ FROM ${ISAACLAB_IMAGE}
 # If your isaaclab image uses a different layout, replace /isaac-sim/python.sh with
 # the correct path (check ${ISAACLAB_PATH}/_isaac_sim/python.sh or the isaaclab.sh alias).
 
+# Expose Isaac Sim's python.sh as PATH `python` so training can be launched from the
+# overlay repos (e.g. `cd /workspace/constrained-albc && python scripts/train.py ...`).
+# This is the official extension-template pattern (run from the external repo).
+# A wrapper, NOT a symlink: python.sh resolves siblings (setup_python_env.sh, kit/) via
+# `dirname BASH_SOURCE`, so it must run at its real path. exec preserves that; a symlink
+# elsewhere makes BASH_SOURCE point at the link dir and the sibling lookup fails.
+RUN printf '%s\n' '#!/bin/bash' 'exec /isaac-sim/python.sh "$@"' > /usr/local/bin/python \
+    && chmod +x /usr/local/bin/python
+
 COPY . /workspace/marinelab
 
 # Pull Git LFS objects that were not included in the COPY context, then install.
