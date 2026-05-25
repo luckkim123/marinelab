@@ -120,7 +120,10 @@ BLUEROV_CFG = ArticulationCfg(
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,  # PhysX handles gravity; HydrodynamicsModel applies buoyancy only
             max_depenetration_velocity=10.0,
-            enable_gyroscopic_forces=True,
+            # use_full_coriolis=True in HydrodynamicsCfg already applies the
+            # rigid-body gyroscopic term omega x (I omega). Disable PhysX's own
+            # to avoid double-counting (see hydrodynamics.py warning).
+            enable_gyroscopic_forces=False,
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=False,
