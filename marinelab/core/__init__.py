@@ -9,5 +9,13 @@ access is never required.
 from .hydrodynamics import HydrodynamicsModel
 from .ocean_current import OceanCurrent
 from .parameters import HydroParams, default_rigid_inertia
+from .thruster import ThrusterCfg, ThrusterModel
 
-__all__ = ["HydrodynamicsModel", "HydroParams", "default_rigid_inertia", "OceanCurrent"]
+__all__ = [
+    "HydrodynamicsModel",
+    "HydroParams",
+    "default_rigid_inertia",
+    "OceanCurrent",
+    "ThrusterModel",
+    "ThrusterCfg",
+]
