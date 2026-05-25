@@ -1,5 +1,8 @@
 # marinelab
 
+![version](https://img.shields.io/badge/version-0.2.0-blue)
+![license](https://img.shields.io/badge/license-BSD--3--Clause-green)
+
 A general-purpose underwater-vehicle (UUV) environment framework on top of
 [Isaac Lab](https://github.com/isaac-sim/IsaacLab).
 
@@ -62,7 +65,7 @@ implementation.
 ### Step 1 — clone and pull meshes
 
 ```bash
-git clone <marinelab-url> /workspace/marinelab
+git clone https://github.com/luckkim123/marinelab.git /workspace/marinelab
 cd /workspace/marinelab
 git lfs install
 git lfs pull
