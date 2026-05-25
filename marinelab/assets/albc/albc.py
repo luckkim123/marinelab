@@ -3,13 +3,13 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Hero Agent underwater vehicle configuration for Isaac Lab.
+"""ALBC underwater vehicle configuration for Isaac Lab.
 
 The following configuration parameters are available:
 
-* :obj:`HERO_AGENT_CFG`: Hero Agent articulation configuration
-* :obj:`HeroAgentHydrodynamicsCfg`: Main body hydrodynamic parameters
-* :obj:`HeroAgentBuoyHydrodynamicsCfg`: Buoy (link3) hydrodynamic parameters
+* :obj:`ALBC_CFG`: ALBC articulation configuration
+* :obj:`ALBCHydrodynamicsCfg`: Main body hydrodynamic parameters
+* :obj:`ALBCBuoyHydrodynamicsCfg`: Buoy (link3) hydrodynamic parameters
 """
 
 from __future__ import annotations
@@ -23,9 +23,9 @@ from isaaclab.utils import configclass
 
 from ..uuv_cfg import HydrodynamicsCfg
 
-# Path to Hero Agent USD file
-_HERO_AGENT_MESHES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "meshes")
-HERO_AGENT_USD_PATH = os.path.join(_HERO_AGENT_MESHES_DIR, "Agent.usd")
+# Path to ALBC USD file
+_ALBC_MESHES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "meshes")
+ALBC_USD_PATH = os.path.join(_ALBC_MESHES_DIR, "Agent.usd")
 
 
 ##
@@ -34,8 +34,8 @@ HERO_AGENT_USD_PATH = os.path.join(_HERO_AGENT_MESHES_DIR, "Agent.usd")
 
 
 @configclass
-class HeroAgentHydrodynamicsCfg(HydrodynamicsCfg):
-    """Hydrodynamic parameters for Hero Agent main body.
+class ALBCHydrodynamicsCfg(HydrodynamicsCfg):
+    """Hydrodynamic parameters for ALBC main body.
 
     Cylinder formulas (Fossen, 2021) with URDF dimensions:
         Main body: a=0.18m (diameter), b=0.325m (length), m=9.18kg, rho=998 kg/m^3
@@ -92,8 +92,8 @@ class HeroAgentHydrodynamicsCfg(HydrodynamicsCfg):
 
 
 @configclass
-class HeroAgentBuoyHydrodynamicsCfg(HydrodynamicsCfg):
-    """Hydrodynamic parameters for Hero Agent buoy (link3 / ABPC).
+class ALBCBuoyHydrodynamicsCfg(HydrodynamicsCfg):
+    """Hydrodynamic parameters for ALBC buoy (link3 / ABPC).
 
     Cylinder formulas (Fossen, 2021) with URDF dimensions:
         Buoy: a=0.17m (diameter), b=0.118m (length), m=0.93kg, rho=998 kg/m^3
@@ -151,26 +151,26 @@ class HeroAgentBuoyHydrodynamicsCfg(HydrodynamicsCfg):
 ##
 
 # ALBC (Active Linear Buoyancy Controller) joint names
-HERO_AGENT_ALBC_JOINT_NAMES: list[str] = ["joint1", "joint2"]
+ALBC_JOINT_NAMES: list[str] = ["joint1", "joint2"]
 
 # ALBC Arm Geometry (from agent.urdf - keep in sync!)
 # These values are extracted from URDF joint origins:
 #   joint1: xyz="0 0 0.1625"
 #   joint2: xyz="0.233 0 0.01"  (link1 length)
 #   buoy_fixer: xyz="0.233 0 0.01"  (link2 length)
-HERO_AGENT_ALBC_LINK1_LENGTH: float = 0.233  # meters (joint2 x-offset from joint1)
-HERO_AGENT_ALBC_LINK2_LENGTH: float = 0.233  # meters (buoy_fixer x-offset from joint2)
-HERO_AGENT_ALBC_HEIGHT_OFFSET: float = 0.1625  # meters (joint1 z-offset from base)
+ALBC_LINK1_LENGTH: float = 0.233  # meters (joint2 x-offset from joint1)
+ALBC_LINK2_LENGTH: float = 0.233  # meters (buoy_fixer x-offset from joint2)
+ALBC_HEIGHT_OFFSET: float = 0.1625  # meters (joint1 z-offset from base)
 
 
 ##
 # Configuration - Articulation.
 ##
 
-HERO_AGENT_CFG = ArticulationCfg(
+ALBC_CFG = ArticulationCfg(
     prim_path="{ENV_REGEX_NS}/Robot",
     spawn=sim_utils.UsdFileCfg(
-        usd_path=HERO_AGENT_USD_PATH,
+        usd_path=ALBC_USD_PATH,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,  # PhysX handles gravity; HydrodynamicsModel applies buoyancy only
             max_depenetration_velocity=10.0,
@@ -202,4 +202,4 @@ HERO_AGENT_CFG = ArticulationCfg(
         ),
     },
 )
-"""Configuration of Hero Agent underwater vehicle."""
+"""Configuration of ALBC underwater vehicle."""
