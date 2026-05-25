@@ -12,6 +12,7 @@ correct quaternion implementation while stubbing the rest of isaaclab.
 
 import sys
 import types
+from pathlib import Path
 
 import torch
 
@@ -62,4 +63,32 @@ def _install_isaaclab_mocks():
     math_mod.quat_from_euler_xyz = _quat_from_euler_xyz
 
 
+def _install_marinelab_package_shim():
+    """Pre-register a bare ``marinelab`` package so its __init__ never runs.
+
+    ``marinelab/__init__.py`` does ``from . import tasks`` which imports the
+    bluerov env -> ``isaaclab.sim`` and the full Isaac Sim stack. We only want
+    ``marinelab.core.*`` (pure physics) under test. Registering ``marinelab`` as
+    an empty module with a real ``__path__`` lets normal imports resolve
+    ``marinelab.core.parameters`` from disk while skipping the heavy __init__.
+    ``marinelab.assets`` (cfg classes the core imports) is stubbed minimally.
+    """
+    repo_root = Path(__file__).resolve().parent.parent
+    if "marinelab" not in sys.modules:
+        pkg = types.ModuleType("marinelab")
+        pkg.__path__ = [str(repo_root / "marinelab")]
+        sys.modules["marinelab"] = pkg
+    if "marinelab.assets" not in sys.modules:
+        assets = types.ModuleType("marinelab.assets")
+        assets.HydrodynamicsCfg = type("HydrodynamicsCfg", (), {})
+        assets.OceanCurrentCfg = type(
+            "OceanCurrentCfg",
+            (),
+            {"max_velocity": (0.0,) * 6, "noise_scale": (0.0,) * 6},
+        )
+        assets.ThrusterCfg = type("ThrusterCfg", (), {})
+        sys.modules["marinelab.assets"] = assets
+
+
 _install_isaaclab_mocks()
+_install_marinelab_package_shim()
