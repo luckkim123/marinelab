@@ -104,9 +104,16 @@ class BlueROVThrusterCfg(ThrusterCfg):
         (-0.707, 0.707, 0.707, -0.707, 0.0, 0.0),
         # Fz: vertical heave force
         (0.0, 0.0, 0.0, 0.0, 1.0, 1.0),
-        # Mx: roll torque
+        # Mx: roll torque (the two vertical thrusters are y-separated, opposite
+        # signs -> they produce roll)
         (0.0, 0.0, 0.0, 0.0, 0.1, -0.1),
-        # My: pitch torque
+        # My: pitch torque. NOTE (A2): the two vertical thrusters are only
+        # y-separated (not fore/aft / x-separated), so they cannot produce an
+        # independent pitch moment. With both signs equal this row is effectively
+        # a second heave contribution, not a controllable pitch input. This
+        # matches the real BlueROV frame (ArduSub holds pitch/roll neutral on the
+        # 6-thruster vectored config). Kept as-is (no geometric evidence in the
+        # repo to justify flipping a sign); pitch is not independently actuated.
         (0.0, 0.0, 0.0, 0.0, 0.12, 0.12),
         # Mz: yaw torque
         (0.19, -0.19, 0.19, -0.19, 0.0, 0.0),
