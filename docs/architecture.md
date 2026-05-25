@@ -60,10 +60,19 @@ marinelab/
         bluerov/         BlueROV2 asset config + USD meshes (Git LFS).
         hero_agent/      Hero Agent asset config + USD/DAE meshes (Git LFS).
 
-    physics/             Shared hydrodynamic and actuator models.
-        hydrodynamics.py Fossen unified model: added mass, damping,
-                         restoring forces. Used by all UUV environments.
-        thruster.py      Thruster allocation matrix and force mapping.
+    core/                Stable framework API. Import from here.
+        hydrodynamics.py Fossen 6-DOF model: added mass, damping, restoring
+                         forces; setter-based DR API. HydrodynamicsModel.
+        thruster.py      First-order thruster dynamics + allocation matrix.
+                         ThrusterModel, ThrusterCfg.
+        ocean_current.py Injectable ocean-current component. OceanCurrent.
+        parameters.py    HydroParams dataclass + default_rigid_inertia helper.
+        volume.py        Buoyancy volume calculation for UUV geometries.
+
+    physics/             Deprecated re-export shim. Re-exports HydrodynamicsModel,
+                         ThrusterModel, OceanCurrent, and the Cfg classes from
+                         marinelab.core so existing `from marinelab.physics import`
+                         imports keep working. New code imports marinelab.core.
 
     tasks/               Gym-registered Isaac Lab environments.
         bluerov/         Five BlueROV2 Direct-task environments:
@@ -78,8 +87,8 @@ marinelab/
             rewards/            Reward terms and reward manager.
             tasks/              Task wrappers (hover_task, attitude_task).
 
-    utils/               Shared utilities.
-        volume.py        Buoyancy volume calculation for UUV geometries.
+    utils/               Deprecated re-export shim. utils/volume re-exports
+                         marinelab.core.volume for backward compatibility.
 ```
 
 ---
