@@ -58,9 +58,11 @@ class BlueROVHydrodynamicsCfg(HydrodynamicsCfg):
     # Quadratic damping coefficients
     quadratic_damping: tuple[float, ...] = (18.18, 21.66, 36.99, 1.55, 1.55, 1.55)
 
-    # Vehicle volume - auto-calculated from collision geometry
-    # If collision geometry doesn't match desired buoyancy, set explicitly (e.g., 0.0113459 m^3)
-    volume: float | None = None
+    # Vehicle volume (m^3). Set explicitly because the BlueROV USD collision
+    # geometry auto-calculates to 1.0 m^3 (unit cube), which would make buoyancy
+    # ~9780 N (88x weight). 0.0113459 m^3 = 11.35 L displacement (MarineGym ref,
+    # IROS 2025) gives neutral buoyancy against the ~11.26 kg PhysX mass.
+    volume: float | None = 0.0113459
 
     # Body name for volume auto-calculation (if volume is None)
     body_name: str = "base_link"
