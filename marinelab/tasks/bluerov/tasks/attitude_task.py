@@ -112,9 +112,13 @@ class AttitudeTask(TaskBase):
         # Error quaternion: how much to rotate from current to target
         error_quat = quat_mul(target_quat_inv, current_quat)
 
-        # Convert to axis-angle representation for error
-        # For small angles: theta ~= 2 * (x, y, z) components
-        attitude_error = 2.0 * error_quat[:, 1:4]  # Approximate for small angles
+        # Convert to axis-angle error. Sign-correct by the scalar part so the
+        # error stays continuous across the quaternion double cover (q and -q
+        # are the same rotation); without this the signal flips/shrinks near
+        # 180 deg where the gradient matters most.
+        w = error_quat[:, 0:1]
+        vec = error_quat[:, 1:4]
+        attitude_error = 2.0 * torch.sign(w) * vec
 
         return attitude_error
 

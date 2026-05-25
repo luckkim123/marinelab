@@ -48,9 +48,10 @@ class BlueROVAttitudeEnvCfg(BlueROVEnvCfg):
     # Action space matches number of thrusters
     action_space: int = 6
 
-    # Observation space: quat(4) + ang_vel(3) + attitude_error(3) + up(2) = 12
-    # Simpler than hover since no position tracking
-    observation_space: int = 12
+    # Env emits a fixed 18-D observation regardless of task (see BlueROVEnv
+    # _get_observations): pos(3) + quat(4) + lin_vel(3) + ang_vel(3) +
+    # goal_obs(3) + up(2) = 18. The attitude goal_obs is the 3-D attitude error.
+    observation_space: int = 18
 
     # Task configuration for attitude control
     task: AttitudeTaskCfg = AttitudeTaskCfg(
