@@ -97,3 +97,33 @@ def test_set_ocean_current_delegates_to_component():
     m = _model()
     m.set_ocean_current(torch.tensor([0]), velocity=torch.ones(1, 6))
     assert torch.all(m.current.velocity_w[0] == 1.0)
+
+
+def test_coriolis_added_mass_sign_known_value():
+    # C_A(v) v for diagonal added mass, hand-computed reference.
+    m = _model(1)
+    lin = torch.tensor([[1.0, 0.5, -0.5]])
+    ang = torch.tensor([[0.1, -0.2, 0.3]])
+    vel6 = torch.cat([lin, ang], dim=-1)
+    force, torque = m._compute_coriolis_added_mass(vel6)
+    # a1 = M_A[:3] * lin = [5.5, 6.35, -7.285]; force = -(a1 x ang)
+    a1 = torch.tensor([5.5 * 1.0, 12.7 * 0.5, 14.57 * -0.5])
+    expected_force = -torch.cross(a1, ang[0], dim=-1)
+    assert torch.allclose(force[0], expected_force, atol=1e-4)
+
+
+def test_damping_quadratic_form():
+    m = _model(1)
+    vel = torch.tensor([[2.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
+    d = m._compute_damping(vel)
+    # surge: D_l*v + D_q*|v|*v = 4.03*2 + 18.18*2*2 = 8.06 + 72.72
+    assert abs(d[0, 0].item() - (4.03 * 2 + 18.18 * 4)) < 1e-3
+
+
+def test_buoyancy_restoring_zero_when_upright_and_cob_centered():
+    # CoB at (0,0,0.01), upright: moment = r_cb x F_b. F_b along +z body => x,y moment only.
+    m = _model(1)
+    quat = torch.tensor([[1.0, 0.0, 0.0, 0.0]])  # identity
+    wrench = m._compute_buoyancy_quat(quat)
+    # r_cb=(0,0,0.01) x F=(0,0,Fb) => cross is zero (parallel)
+    assert torch.allclose(wrench[0, 3:], torch.zeros(3), atol=1e-5)
