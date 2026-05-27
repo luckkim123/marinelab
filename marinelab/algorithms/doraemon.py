@@ -634,14 +634,20 @@ class DoraemonScheduler:
             flat_result = np.exp(result.x).clip(min=_MIN_BETA_PARAM, max=_MAX_BETA_PARAM)
             init_obj = objective_fn(log_x0)[0]
             kl_val = self.cfg.kl_ub - kl_constraint["fun"](result.x)
-            if result.success or (result.fun < init_obj and kl_val <= self.cfg.kl_ub):
+            # Accept a non-converged SLSQP result only if ALL constraints hold (perf floor + KL) AND entropy
+            # improved -- mirrors reference doraemon.py:920 "all constraints satisfied AND improved, else keep old".
+            # Without the perf re-check, the OR-branch could accept a sub-floor (success < alpha) distribution when
+            # the solver stalls; harmless while success >> alpha, but a real leak once DR is widened toward the floor.
+            perf_ok = perf_ineq(result.x) >= 0.0
+            if result.success or (perf_ok and result.fun < init_obj and kl_val <= self.cfg.kl_ub):
                 self.dist.set_flat_params(flat_result)
                 logger.info(
-                    "[DORAEMON] Entropy opt: neg_H %.4f -> %.4f, KL=%.4f, success=%s",
+                    "[DORAEMON] Entropy opt: neg_H %.4f -> %.4f, KL=%.4f, success=%s, perf_ok=%s",
                     init_obj,
                     result.fun,
                     kl_val,
                     result.success,
+                    perf_ok,
                 )
             else:
                 logger.warning(
