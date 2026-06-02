@@ -122,3 +122,112 @@ cd /workspace/isaaclab
   `${ISAACLAB_PATH}/isaaclab.sh -p -m pip` (or `/isaac-sim/python.sh -m pip`
   directly). The Dockerfile uses the direct path; if your isaaclab image uses a
   different layout, adjust accordingly.
+
+---
+
+## Path C — ARM64 (NVIDIA GB10 / DGX Spark, Grace-Blackwell)
+
+Use this path on ARM64 (`aarch64`) machines such as the **NVIDIA GB10 / DGX
+Spark**. The prebuilt Isaac Sim that Path A and Path B assume is **x86-only**, so
+ARM64 needs Isaac Sim built from source. Everything downstream (Isaac Lab,
+marinelab, the RL stack) then installs normally.
+
+> **Why source build?** As of Isaac Sim 5.1 there is no pip wheel or container
+> image for `linux/arm64`: `pip install isaacsim` only resolves a 6.0.x release
+> whose `omniverse-kit` dependency fails to build on aarch64, and the 5.1 x86
+> binaries are not runnable on ARM (`Exec format error`). NVIDIA's supported
+> route on GB10 is the IsaacSim source build. Headless training, GUI viewport,
+> and GPU rendering all work once it is built. `--livestream` does **not** work
+> (the WebRTC livestream extension is not distributed for aarch64).
+
+### 1. Build dependencies
+
+The IsaacSim build requires **GCC 11** (newer Ubuntu defaults to GCC 13) plus the
+usual X11/GL development headers:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y gcc-11 g++-11 \
+    libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 110
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 110
+```
+
+Verify `gcc --version` reports 11.x before building.
+
+### 2. Clone and build Isaac Sim from source
+
+```bash
+git clone --depth=1 --recursive https://github.com/isaac-sim/IsaacSim.git
+cd IsaacSim
+git lfs pull
+
+# The build's EULA prompt is interactive and cannot be answered in a
+# non-interactive shell. Pre-accept it by creating the marker file:
+touch .eula_accepted
+
+./build.sh
+```
+
+A successful build produces `_build/linux-aarch64/release` (~11 GB). The build
+takes roughly 10–15 minutes.
+
+### 3. Point Isaac Lab at the built Isaac Sim
+
+Symlink the freshly built release into the Isaac Lab clone, then run its
+installer:
+
+```bash
+ln -sfn "$(pwd)/_build/linux-aarch64/release" <isaaclab-path>/_isaac_sim
+
+cd <isaaclab-path>
+export TERM=xterm           # without this, isaaclab.sh aborts: 'ansi+tabs: unknown terminal type'
+./isaaclab.sh --install
+```
+
+`--install` pulls Isaac Lab's dependencies but may **not** install the base
+`isaaclab` package itself. If a later step fails with
+`ModuleNotFoundError: No module named 'isaaclab'`, install it explicitly through
+the bundled Python:
+
+```bash
+cd <isaaclab-path>
+./isaaclab.sh -p -m pip install "setuptools<81" wheel   # newer setuptools drops pkg_resources, breaking the editable build
+./isaaclab.sh -p -m pip install -e source/isaaclab
+```
+
+### 4. Install marinelab and the RL stack
+
+Identical to Path A from here — the launcher is architecture-independent:
+
+```bash
+cd <isaaclab-path>
+./isaaclab.sh -p -m pip install -e <marinelab-path>
+```
+
+### 5. Verify (headless)
+
+```bash
+cd <isaaclab-path>
+export LD_PRELOAD="$LD_PRELOAD:/lib/aarch64-linux-gnu/libgomp.so.1"   # avoids an OpenMP segfault at startup on aarch64
+./isaaclab.sh -p scripts/environments/random_agent.py \
+    --task Isaac-BlueROV-Hover-Direct-v0 \
+    --num_envs 4 --headless
+```
+
+A clean exit confirms the ARM64 stack is working.
+
+### Notes
+
+- **GPU rendering with a GUI works** even when the X display is software-rendered
+  (`llvmpipe`). Isaac Sim renders through the NVIDIA EGL vendor
+  (`/usr/share/glvnd/egl_vendor.d/10_nvidia.json`), which is independent of the
+  X11/GLX display path. To watch training in a viewport, drop `--headless` and
+  point `DISPLAY` at a running VNC display.
+- **`LD_PRELOAD` for `libgomp` is required**, not optional — without it the app
+  segfaults during startup on aarch64.
+- The bundled Python interpreter inside the build is **Python 3.11** even when the
+  host OS ships Python 3.12; always go through `./isaaclab.sh -p` rather than the
+  system Python.
+- Replace `<isaaclab-path>` and `<marinelab-path>` with wherever you cloned each
+  repo. Nothing in this path depends on a specific absolute location.
