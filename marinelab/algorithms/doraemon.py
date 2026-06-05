@@ -46,6 +46,7 @@ class DoraemonCfg:
     min_ess_ratio: float = 0.01  # Minimum ESS/buffer_size to accept update (relaxed for kl_ub=2.0)
     hard_performance_constraint: bool = True  # Use inverted problem when infeasible
     param_overrides: dict[str, tuple[float, float]] = {}  # Per-param bound overrides {name: (lo, hi)}
+    replay_curriculum_path: str = ""  # if set, env loads a recorded curriculum for frozen replay
 
 
 # Parameter Specification
