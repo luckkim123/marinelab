@@ -164,3 +164,71 @@ def test_scheduler_state_dict_round_trips_write_idx():
     fresh.load_state_dict(state)
     assert fresh.buffer._write_idx == 6
     assert fresh.buffer._count == 6
+
+
+def test_replay_matches_recording():
+    # Record a real curriculum, then replay it; (a, b) must match bit-exact per update.
+    sch = _make_scheduler(step_interval=2, min_episodes=4)
+    for it in range(0, 6):
+        _fill_buffer(sch, 8)
+        sch.step(iteration=it)
+    rec = sch.export_recording()
+    assert len(rec["trajectory"]) >= 2
+
+    specs = _specs()
+    rep = CurriculumReplayer(rec, specs, torch.device("cpu"))
+    for entry in rec["trajectory"]:
+        rep.step(iteration=entry["iter"])
+        assert rep.dist._a.tolist() == entry["a"]
+        assert rep.dist._b.tolist() == entry["b"]
+
+
+def test_dim_mismatch_raises():
+    rec = _recording([{"iter": 0, "a": [10.0, 10.0], "b": [10.0, 10.0]}])
+    three_specs = [
+        ParamSpec("p0", 0.0, 1.0, 0.5),
+        ParamSpec("p1", 0.0, 2.0, 1.0),
+        ParamSpec("p2", 0.0, 1.0, 0.5),
+    ]
+    with pytest.raises(ValueError, match="dims"):
+        CurriculumReplayer(rec, three_specs, torch.device("cpu"))
+
+
+def test_bounds_mismatch_raises():
+    rec = _recording([{"iter": 0, "a": [10.0, 10.0], "b": [10.0, 10.0]}])
+    bad_specs = [ParamSpec("p0", 0.0, 1.0, 0.5), ParamSpec("p1", 0.0, 5.0, 1.0)]  # hi 2.0 -> 5.0
+    with pytest.raises(ValueError, match="bounds mismatch"):
+        CurriculumReplayer(rec, bad_specs, torch.device("cpu"))
+
+
+def test_name_mismatch_raises():
+    rec = _recording([{"iter": 0, "a": [10.0, 10.0], "b": [10.0, 10.0]}])
+    wrong_name = [ParamSpec("p0", 0.0, 1.0, 0.5), ParamSpec("pX", 0.0, 2.0, 1.0)]  # p1 -> pX
+    with pytest.raises(ValueError, match="name mismatch"):
+        CurriculumReplayer(rec, wrong_name, torch.device("cpu"))
+
+
+def test_record_to_json_to_replay(tmp_path):
+    # End-to-end: record, serialize to JSON exactly as the runner does, reload, replay.
+    import json as _json
+
+    sch = _make_scheduler(step_interval=2, min_episodes=4)
+    for it in range(0, 6):
+        _fill_buffer(sch, 8)
+        sch.step(iteration=it)
+    recording = sch.export_recording()
+
+    path = tmp_path / "curriculum_trajectory.json"
+    path.write_text(_json.dumps(recording))
+    loaded = _json.loads(path.read_text())
+
+    rep = CurriculumReplayer(loaded, _specs(), torch.device("cpu"))
+    for entry in loaded["trajectory"]:
+        rep.step(iteration=entry["iter"])
+        assert rep.dist._a.tolist() == entry["a"]
+        assert rep.dist._b.tolist() == entry["b"]
+    # sample() works after replay and respects physical bounds.
+    xi, _ = rep.sample(16)
+    assert xi.shape == (16, 2)
+    assert (xi[:, 0] >= 0.0).all() and (xi[:, 0] <= 1.0).all()
+    assert (xi[:, 1] >= 0.0).all() and (xi[:, 1] <= 2.0).all()
