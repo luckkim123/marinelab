@@ -6,6 +6,24 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- DORAEMON curriculum record & replay (`marinelab.algorithms.doraemon`):
+  - `DoraemonScheduler` records its DR curriculum trajectory (one `(iter, a, b)`
+    entry per update) and exposes `export_recording()` (param metadata +
+    trajectory) and `export_trajectory()`. `step()` gains an optional `iteration`
+    argument so the trajectory aligns to true RL iterations.
+  - `CurriculumReplayer` duck-types the scheduler's
+    `sample`/`step`/`record_episodes`/`state_dict` surface and replays a recorded
+    curriculum with hold-last interpolation; the online optimizer is disabled.
+    Used to give comparison baselines the cmdp run's exact DR difficulty timeline.
+  - `DoraemonCfg.replay_curriculum_path` config field selects replay mode.
+  - Tests: `tests/test_doraemon_replay.py`.
+
+---
+
 ## [0.2.0] - 2026-05-25
 
 Framework-ization: marinelab becomes a general-purpose UUV framework. The physics
