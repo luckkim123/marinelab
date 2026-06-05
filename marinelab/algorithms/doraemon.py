@@ -352,6 +352,7 @@ class DoraemonScheduler:
 
         self._step_count = 0
         self._total_episodes = 0
+        self._trajectory: list[dict] = []
 
         logger.info(
             "[DORAEMON] Initialized: alpha=%.2f, kl_ub=%.4f, performance_lb=%.1f, "
@@ -379,7 +380,7 @@ class DoraemonScheduler:
     # Main step
     # ------------------------------------------------------------------
 
-    def step(self) -> dict[str, float]:
+    def step(self, iteration: int | None = None) -> dict[str, float]:
         """Run one DORAEMON distribution optimization step.
 
         Reference structure (Tiboni et al., ICLR 2024):
@@ -463,6 +464,16 @@ class DoraemonScheduler:
             metrics["entropy_after"] = self.dist.entropy()
             metrics["kl_step"] = 0.0
             logger.warning("[DORAEMON] Reverted: ESS=%.0f (%.1f%% of %d)", ess, 100 * ess_ratio, n)
+
+        # Record the committed distribution for curriculum replay.
+        rec_iter = iteration if iteration is not None else self._step_count
+        self._trajectory.append(
+            {
+                "iter": int(rec_iter),
+                "a": self.dist._a.tolist(),
+                "b": self.dist._b.tolist(),
+            }
+        )
 
         self._step_count += 1
         return metrics
@@ -745,6 +756,10 @@ class DoraemonScheduler:
     # ------------------------------------------------------------------
     # State persistence
     # ------------------------------------------------------------------
+
+    def export_trajectory(self) -> list[dict]:
+        """Recorded (iter, a, b) entries, one per DORAEMON update. Replay uses this."""
+        return self._trajectory
 
     def state_dict(self) -> dict:
         """Serialize scheduler state for checkpoint persistence."""
