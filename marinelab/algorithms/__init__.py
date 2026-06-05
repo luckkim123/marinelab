@@ -8,6 +8,7 @@ robot-agnostic DR-curriculum engine: the caller injects its own parameter defini
 
 from .doraemon import (
     BetaDistribution,
+    CurriculumReplayer,
     DoraemonCfg,
     DoraemonScheduler,
     EpisodeBuffer,
@@ -17,6 +18,7 @@ from .doraemon import (
 
 __all__ = [
     "BetaDistribution",
+    "CurriculumReplayer",
     "DoraemonCfg",
     "DoraemonScheduler",
     "EpisodeBuffer",

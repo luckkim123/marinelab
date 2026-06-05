@@ -804,3 +804,92 @@ class DoraemonScheduler:
         self.buffer.log_probs[:n] = state["buffer_log_probs"].to(self.device)
         self.buffer._count = n
         self.buffer._write_idx = state["buffer_write_idx"]
+
+
+# Curriculum Replay
+# ---------------------------------------------------------------------------
+
+
+class CurriculumReplayer:
+    """Replays a recorded DORAEMON curriculum. Duck-types DoraemonScheduler.
+
+    Exposes the same sample()/step()/record_episodes()/state_dict() surface the env
+    and runner consume, so swapping it in needs no change to their control flow. The
+    distribution at iteration ``t`` is the last recorded update with ``iter <= t``
+    (hold-last step function). No buffer, no IS, no optimization.
+    """
+
+    def __init__(self, recording: dict, param_specs: list[ParamSpec], device: torch.device) -> None:
+        self._validate(recording, param_specs)
+        self.dist = BetaDistribution(param_specs, device, concentration=2.0)  # overwritten below
+        self._schedule = sorted(recording["trajectory"], key=lambda e: int(e["iter"]))
+        if not self._schedule:
+            raise ValueError("CurriculumReplayer: recording has an empty trajectory.")
+        self._last_iter = int(self._schedule[-1]["iter"])
+        self._warned_past_end = False
+        self._apply(0)
+
+    @staticmethod
+    def _validate(recording: dict, param_specs: list[ParamSpec]) -> None:
+        names = recording.get("param_names")
+        bounds = recording.get("param_bounds")
+        if names is None or bounds is None:
+            raise ValueError("CurriculumReplayer: recording missing param_names/param_bounds.")
+        if len(names) != len(param_specs):
+            raise ValueError(
+                f"CurriculumReplayer: recording has {len(names)} dims but config expects "
+                f"{len(param_specs)}."
+            )
+        for spec, name, (lo, hi) in zip(param_specs, names, bounds):
+            if spec.name != name:
+                raise ValueError(
+                    f"CurriculumReplayer: param name mismatch at dim: '{name}' vs '{spec.name}'."
+                )
+            if abs(spec.min_bound - lo) > 1e-9 or abs(spec.max_bound - hi) > 1e-9:
+                raise ValueError(
+                    f"CurriculumReplayer: bounds mismatch for '{name}': "
+                    f"recording ({lo}, {hi}) vs config ({spec.min_bound}, {spec.max_bound})."
+                )
+
+    def _apply(self, iteration: int) -> None:
+        """Set self.dist to the last recorded update with iter <= iteration."""
+        entry = self._schedule[0]
+        for e in self._schedule:
+            if int(e["iter"]) <= iteration:
+                entry = e
+            else:
+                break
+        self.dist._a = torch.tensor(entry["a"], dtype=torch.float64)
+        self.dist._b = torch.tensor(entry["b"], dtype=torch.float64)
+
+    # --- DoraemonScheduler-compatible surface ---
+
+    def sample(self, n: int) -> tuple[torch.Tensor, torch.Tensor]:
+        return self.dist.sample(n)
+
+    def step(self, iteration: int | None = None) -> dict[str, float]:
+        it = 0 if iteration is None else int(iteration)
+        if it > self._last_iter and not self._warned_past_end:
+            logger.warning(
+                "[REPLAY] iteration %d past recorded end %d; holding final distribution.",
+                it, self._last_iter,
+            )
+            self._warned_past_end = True
+        self._apply(it)
+        return {"replay/cur_iter": float(it), "replay/entropy": self.dist.entropy()}
+
+    def record_episodes(self, *args, **kwargs) -> None:
+        """No-op: replay ignores episode statistics."""
+        return None
+
+    def state_dict(self) -> dict:
+        """Current distribution only (checkpoint compatibility)."""
+        return {"dist_a": self.dist._a.clone(), "dist_b": self.dist._b.clone()}
+
+    def load_state_dict(self, state: dict) -> None:
+        """Replay distribution is schedule-driven; ignore checkpointed dist."""
+        return None
+
+    def export_trajectory(self) -> list[dict]:
+        """A replay run does not re-record."""
+        return []

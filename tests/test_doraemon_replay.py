@@ -90,3 +90,77 @@ def test_export_recording_has_metadata():
     assert rec["param_names"] == ["p0", "p1"]
     assert rec["param_bounds"] == [[0.0, 1.0], [0.0, 2.0]]
     assert rec["trajectory"] == sch.export_trajectory()
+
+
+from marinelab.algorithms.doraemon import CurriculumReplayer, ParamSpec  # noqa: E402
+
+
+def _specs():
+    return [ParamSpec("p0", 0.0, 1.0, 0.5), ParamSpec("p1", 0.0, 2.0, 1.0)]
+
+
+def _recording(entries):
+    return {
+        "param_names": ["p0", "p1"],
+        "param_bounds": [[0.0, 1.0], [0.0, 2.0]],
+        "trajectory": entries,
+    }
+
+
+def test_replay_holds_last():
+    rec = _recording([
+        {"iter": 0, "a": [10.0, 10.0], "b": [10.0, 10.0]},
+        {"iter": 4, "a": [20.0, 20.0], "b": [5.0, 5.0]},
+    ])
+    rep = CurriculumReplayer(rec, _specs(), torch.device("cpu"))
+
+    rep.step(iteration=0)
+    assert rep.dist._a.tolist() == [10.0, 10.0]
+    rep.step(iteration=2)  # between 0 and 4 -> hold the iter-0 distribution
+    assert rep.dist._a.tolist() == [10.0, 10.0]
+    rep.step(iteration=4)  # exactly at next update
+    assert rep.dist._a.tolist() == [20.0, 20.0]
+    rep.step(iteration=999)  # past the end -> hold last
+    assert rep.dist._a.tolist() == [20.0, 20.0]
+
+
+def test_replay_record_episodes_noop():
+    rec = _recording([{"iter": 0, "a": [10.0, 10.0], "b": [10.0, 10.0]}])
+    rep = CurriculumReplayer(rec, _specs(), torch.device("cpu"))
+    rep.step(iteration=0)
+    before = rep.dist._a.clone()
+    xi, lp = rep.sample(8)
+    rep.record_episodes(xi, torch.ones(8), torch.ones(8), lp)  # must not change dist
+    assert torch.equal(rep.dist._a, before)
+
+
+def test_sample_interface_parity():
+    rec = _recording([{"iter": 0, "a": [10.0, 10.0], "b": [10.0, 10.0]}])
+    rep = CurriculumReplayer(rec, _specs(), torch.device("cpu"))
+    sch = _make_scheduler()
+    rep_xi, rep_lp = rep.sample(5)
+    sch_xi, sch_lp = sch.sample(5)
+    assert rep_xi.shape == sch_xi.shape == (5, 2)
+    assert rep_lp.shape == sch_lp.shape == (5,)
+    assert rep_xi.dtype == sch_xi.dtype
+
+
+def test_export_trajectory_empty_for_replayer():
+    rec = _recording([{"iter": 0, "a": [10.0, 10.0], "b": [10.0, 10.0]}])
+    rep = CurriculumReplayer(rec, _specs(), torch.device("cpu"))
+    assert rep.export_trajectory() == []
+
+
+def test_scheduler_state_dict_round_trips_write_idx():
+    # Regression guard: load_state_dict must restore the ring-buffer write pointer.
+    # If _write_idx is not restored, a resumed run overwrites the buffer head and
+    # corrupts DORAEMON's IS estimate.
+    sch = _make_scheduler(step_interval=2, min_episodes=4)  # buffer_size=64
+    _fill_buffer(sch, 6)  # write_idx advances to 6
+    state = sch.state_dict()
+    assert state["buffer_write_idx"] == 6
+
+    fresh = _make_scheduler(step_interval=2, min_episodes=4)
+    fresh.load_state_dict(state)
+    assert fresh.buffer._write_idx == 6
+    assert fresh.buffer._count == 6
