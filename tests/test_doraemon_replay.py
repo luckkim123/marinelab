@@ -80,3 +80,13 @@ def test_record_appends_on_update():
     # Each entry carries the full (a, b) vectors.
     assert len(sch.export_trajectory()[0]["a"]) == 2
     assert len(sch.export_trajectory()[0]["b"]) == 2
+
+
+def test_export_recording_has_metadata():
+    sch = _make_scheduler(step_interval=2, min_episodes=4)
+    _fill_buffer(sch, 8)
+    sch.step(iteration=0)
+    rec = sch.export_recording()
+    assert rec["param_names"] == ["p0", "p1"]
+    assert rec["param_bounds"] == [[0.0, 1.0], [0.0, 2.0]]
+    assert rec["trajectory"] == sch.export_trajectory()

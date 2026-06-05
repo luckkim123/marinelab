@@ -761,6 +761,14 @@ class DoraemonScheduler:
         """Recorded (iter, a, b) entries, one per DORAEMON update. Replay uses this."""
         return self._trajectory
 
+    def export_recording(self) -> dict:
+        """Full recording: param metadata + trajectory, for CurriculumReplayer."""
+        return {
+            "param_names": [p.name for p in self.dist.params],
+            "param_bounds": [[p.min_bound, p.max_bound] for p in self.dist.params],
+            "trajectory": self._trajectory,
+        }
+
     def state_dict(self) -> dict:
         """Serialize scheduler state for checkpoint persistence."""
         return {
