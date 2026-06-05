@@ -820,8 +820,18 @@ class CurriculumReplayer:
     (hold-last step function). No buffer, no IS, no optimization.
     """
 
-    def __init__(self, recording: dict, param_specs: list[ParamSpec], device: torch.device) -> None:
+    def __init__(
+        self,
+        recording: dict,
+        param_specs: list[ParamSpec],
+        device: torch.device,
+        cfg: DoraemonCfg | None = None,
+    ) -> None:
         self._validate(recording, param_specs)
+        # The env reads self.cfg.performance_lb (to compute the binary success that
+        # record_episodes then discards). Expose a cfg so duck typing stays complete;
+        # default to a stock DoraemonCfg when the recording run's cfg is not supplied.
+        self.cfg = cfg if cfg is not None else DoraemonCfg()
         self.dist = BetaDistribution(param_specs, device, concentration=2.0)  # overwritten below
         self._schedule = sorted(recording["trajectory"], key=lambda e: int(e["iter"]))
         if not self._schedule:

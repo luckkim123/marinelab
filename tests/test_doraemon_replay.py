@@ -232,3 +232,24 @@ def test_record_to_json_to_replay(tmp_path):
     assert xi.shape == (16, 2)
     assert (xi[:, 0] >= 0.0).all() and (xi[:, 0] <= 1.0).all()
     assert (xi[:, 1] >= 0.0).all() and (xi[:, 1] <= 2.0).all()
+
+
+def test_replay_exposes_cfg_performance_lb():
+    # Regression: the env reads self._doraemon.cfg.performance_lb in _log_and_reset_rewards
+    # (to compute binary success before the no-op record_episodes). The replayer must expose
+    # a cfg with performance_lb or the env crashes with AttributeError on the first reset.
+    rec = _recording([{"iter": 0, "a": [10.0, 10.0], "b": [10.0, 10.0]}])
+    rep = CurriculumReplayer(rec, _specs(), torch.device("cpu"))
+    assert hasattr(rep, "cfg")
+    assert hasattr(rep.cfg, "performance_lb")
+    # Default falls back to DoraemonCfg's default performance_lb.
+    assert rep.cfg.performance_lb == DoraemonCfg().performance_lb
+
+
+def test_replay_preserves_injected_cfg_performance_lb():
+    # When the recording run used a non-default J_LB (e.g. 90.0), the replay should carry it,
+    # so the (discarded) success computation matches the recording run's threshold.
+    rec = _recording([{"iter": 0, "a": [10.0, 10.0], "b": [10.0, 10.0]}])
+    cfg = DoraemonCfg(performance_lb=90.0)
+    rep = CurriculumReplayer(rec, _specs(), torch.device("cpu"), cfg=cfg)
+    assert rep.cfg.performance_lb == 90.0
