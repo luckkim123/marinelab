@@ -134,6 +134,19 @@ class ThrusterCfg:
     time_constant_up: float = 0.1
     time_constant_down: float = 0.05
 
+    # Nonlinear thrust-curve model (BlueROV T200 sim-to-real fidelity).
+    # OFF by default: when False, compute_wrench keeps the linear map
+    # (thrust = state * thrust_coefficient), byte-identical to prior runs.
+    # When True, applies a normalized-command deadband + signed-square curve
+    # so the sim thruster matches the real T200's zero-thrust deadzone and
+    # quadratic (T ~ command^2) propeller law instead of a linear map.
+    enable_thrust_curve: bool = False
+    # Deadband half-width in normalized command space [-1, 1]: |state| below
+    # this produces zero thrust. 0.075 = MarineGym T200 fit (also ~0.0625 from
+    # the +/-25 us PWM deadband over the +/-400 us half-range). Only used when
+    # enable_thrust_curve is True.
+    thrust_deadband: float = 0.075
+
     # Thruster allocation matrix: wrench = allocation_matrix @ thrusts
     # Shape: (6, num_thrusters) where 6 = [Fx, Fy, Fz, Mx, My, Mz]
     # Default derived from BlueROV2 Heavy 6-thruster layout

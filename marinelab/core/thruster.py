@@ -131,16 +131,41 @@ class ThrusterModel:
         alpha = dt / tau
         self._state = self._state + alpha * (target_state - self._state)
 
+    def _thrust_command(self) -> torch.Tensor:
+        """Map normalized thruster state [-1, 1] to an effective command.
+
+        When ``cfg.enable_thrust_curve`` is False this is the identity (the
+        state itself), so ``compute_wrench`` stays byte-identical to the linear
+        model. When True it applies a BlueROV T200 fidelity model in normalized
+        command space:
+
+        - Deadband: ``|state| < cfg.thrust_deadband`` -> 0 (the real T200 ESC
+          produces zero thrust in a +/-25 us PWM deadzone around neutral).
+        - Signed-square curve: outside the deadband the command follows
+          ``sign(state) * state**2``, matching the quadratic propeller law
+          (thrust ~ omega^2, omega ~ command) instead of a linear map.
+
+        The output stays in [-1, 1] (``|state| <= 1`` => ``state**2 <= 1``), so
+        the downstream ``* thrust_coefficient`` scaling is unchanged in range.
+        """
+        if not getattr(self.cfg, "enable_thrust_curve", False):
+            return self._state
+        deadband = getattr(self.cfg, "thrust_deadband", 0.075)
+        active = self._state.abs() > deadband
+        curved = torch.sign(self._state) * self._state.square()
+        return torch.where(active, curved, torch.zeros_like(self._state))
+
     def compute_wrench(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute body forces and torques from current thruster state.
 
         Returns:
             Tuple of (forces, torques) tensors. Each shape: (num_envs, 3).
         """
+        command = self._thrust_command()
         if self._thrust_coeff is not None:
-            thrust_magnitude = self._state * self._thrust_coeff.unsqueeze(-1)
+            thrust_magnitude = command * self._thrust_coeff.unsqueeze(-1)
         else:
-            thrust_magnitude = self._state * self.cfg.thrust_coefficient
+            thrust_magnitude = command * self.cfg.thrust_coefficient
 
         # Apply per-thruster fault health BEFORE clamping: a degraded thruster has a
         # reduced peak force, so health scales the unsaturated magnitude (health=0.5

@@ -162,3 +162,43 @@ def test_set_health_noop_when_disabled():
     m = ThrusterModel(_Cfg(), num_envs=2, device="cpu", enable_fault=False)
     m.set_thruster_health(torch.tensor([0]), torch.zeros(1, 6))  # must not raise
     assert m._thruster_health is None
+
+
+class _CurveCfg(_Cfg):
+    """T200 nonlinear thrust curve enabled."""
+
+    enable_thrust_curve = True
+    thrust_deadband = 0.075
+
+
+def test_thrust_curve_off_is_linear():
+    # Default cfg has no curve flag -> byte-identical to the linear model.
+    m = ThrusterModel(_Cfg(), num_envs=1, device="cpu")
+    m._state = torch.full((1, 6), 0.5)
+    f, _ = m.compute_wrench()
+    # heave row VL+VR = 0.5*40 + 0.5*40 = 40 N (linear map, no curve)
+    assert abs(f[0, 2].item() - 40.0) < 1e-3
+
+
+def test_thrust_curve_signed_square():
+    m = ThrusterModel(_CurveCfg(), num_envs=1, device="cpu")
+    m._state = torch.full((1, 6), 0.5)
+    f, _ = m.compute_wrench()
+    # signed-square: 0.5**2 * 40 = 10 N per thruster; heave VL+VR = 20 N
+    assert abs(f[0, 2].item() - 20.0) < 1e-3
+
+
+def test_thrust_curve_deadband_zeroes_small_command():
+    m = ThrusterModel(_CurveCfg(), num_envs=1, device="cpu")
+    m._state = torch.full((1, 6), 0.05)  # below 0.075 deadband -> zero thrust
+    f, t = m.compute_wrench()
+    assert torch.allclose(f, torch.zeros_like(f), atol=1e-6)
+    assert torch.allclose(t, torch.zeros_like(t), atol=1e-6)
+
+
+def test_thrust_curve_sign_and_bounds_preserved():
+    m = ThrusterModel(_CurveCfg(), num_envs=1, device="cpu")
+    # Full command keeps magnitude 1 (1**2=1) and sign; heave VL+VR = -80 N.
+    m._state = torch.full((1, 6), -1.0)
+    f, _ = m.compute_wrench()
+    assert abs(f[0, 2].item() - (-80.0)) < 1e-3
