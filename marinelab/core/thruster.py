@@ -38,6 +38,7 @@ class ThrusterModel:
         num_envs: int,
         device: str,
         enable_randomization: bool = False,
+        enable_fault: bool = False,
     ) -> None:
         """Initialize the thruster model.
 
@@ -46,6 +47,9 @@ class ThrusterModel:
             num_envs: Number of parallel environments.
             device: Computation device.
             enable_randomization: Whether to enable per-environment parameter storage.
+            enable_fault: Whether to enable per-env per-thruster fault (health) injection.
+                When False, no health buffer is allocated and ``compute_wrench`` skips the
+                health multiply entirely (byte-identical to the fault-free model).
         """
         self.cfg = cfg
         self.num_envs = num_envs
@@ -72,6 +76,14 @@ class ThrusterModel:
             self._thrust_coeff = None
             self._time_constant_up = None
             self._time_constant_down = None
+
+        # Per-env per-thruster health in [0, 1] (0 = dead, 1 = nominal). Distinct from
+        # DR: a fault models an actuator FAILING, not a physical-parameter spread. Only
+        # allocated when fault injection is on; None -> compute_wrench skips the multiply.
+        if enable_fault:
+            self._thruster_health = torch.ones((num_envs, cfg.num_thrusters), device=device)
+        else:
+            self._thruster_health = None
 
     def _setup_buffers(self) -> None:
         """Setup internal buffers."""
@@ -130,6 +142,12 @@ class ThrusterModel:
         else:
             thrust_magnitude = self._state * self.cfg.thrust_coefficient
 
+        # Apply per-thruster fault health BEFORE clamping: a degraded thruster has a
+        # reduced peak force, so health scales the unsaturated magnitude (health=0.5
+        # halves output even in saturation). Skipped entirely when fault is disabled.
+        if self._thruster_health is not None:
+            thrust_magnitude = thrust_magnitude * self._thruster_health
+
         thrust_magnitude = thrust_magnitude.clamp(-self.cfg.max_thrust, self.cfg.max_thrust)
 
         body_wrench = torch.einsum("ij,nj->ni", self._allocation_matrix, thrust_magnitude)
@@ -146,6 +164,26 @@ class ThrusterModel:
             env_ids: Environment indices to reset.
         """
         self._state[env_ids] = 0.0
+
+    def set_thruster_health(self, env_ids: torch.Tensor, health: torch.Tensor) -> None:
+        """Inject per-env per-thruster health (fault) for the given envs.
+
+        Mirrors the ``randomize_parameters`` lifecycle: called at reset time for the
+        envs being reset, writing only their rows. A fault is NOT cleared by an
+        episode reset on its own -- the events layer resamples it at reset, exactly
+        like domain randomization.
+
+        Args:
+            env_ids: Environment indices to set. Shape: (M,).
+            health: Health values in [0, 1]. Shape: (M, num_thrusters); 0 = dead,
+                1 = nominal, intermediate = partial degradation.
+
+        No-op when fault injection is disabled (buffer is None), so callers need not
+        know the toggle state.
+        """
+        if self._thruster_health is None:
+            return
+        self._thruster_health[env_ids] = health.to(self._thruster_health.dtype)
 
     def randomize_parameters(
         self,
