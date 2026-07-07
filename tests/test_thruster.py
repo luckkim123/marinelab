@@ -335,3 +335,63 @@ def test_curve_and_fault_compose_in_order():
     m._state = torch.full((1, 6), 0.5)
     f, _ = m.compute_wrench()
     assert abs(f[0, 2].item() - 10.0) < 1e-3
+
+
+# ============================================================================
+# Per-step actuation noise (white, multiplicative command noise)
+# ============================================================================
+# The THIRD actuation channel, independent of DR (thrust_coefficient spread,
+# reset-time) and fault (thruster health, reset-time). It perturbs the COMMAND
+# every step: applied = commanded * (1 + eps), eps ~ N(0, std), drawn per-env
+# per-thruster. Armed only by enable_actuation_noise=True; None guard when off
+# means byte-identical (no RNG consumed).
+
+
+class _NoiseCfg(_Cfg):
+    """Actuation-noise cfg: nonzero std so the channel is active when armed."""
+
+    actuation_noise_std = 0.1
+
+
+def test_actuation_noise_off_is_byte_identical():
+    # Default cfg + flag False -> apply_dynamics byte-identical to the no-noise
+    # model, and no RNG consumed (re-run from a fresh model gives the same state).
+    torch.manual_seed(0)
+    m = ThrusterModel(_Cfg(), num_envs=4, device="cpu")
+    m.apply_dynamics(torch.full((4, 6), 0.3), dt=0.02)
+    ref = m.state.clone()
+    m2 = ThrusterModel(_Cfg(), num_envs=4, device="cpu")
+    m2.apply_dynamics(torch.full((4, 6), 0.3), dt=0.02)
+    assert torch.equal(ref, m2.state)
+
+
+def test_actuation_noise_disabled_when_flag_false_even_if_std_set():
+    # std nonzero in cfg but enable_actuation_noise=False -> still off.
+    m = ThrusterModel(_NoiseCfg(), num_envs=4, device="cpu", enable_actuation_noise=False)
+    assert m._act_noise_std is None
+    m_ref = ThrusterModel(_Cfg(), num_envs=4, device="cpu")
+    m.apply_dynamics(torch.full((4, 6), 0.3), dt=0.02)
+    m_ref.apply_dynamics(torch.full((4, 6), 0.3), dt=0.02)
+    assert torch.equal(m.state, m_ref.state)
+
+
+def test_actuation_noise_on_perturbs_and_resamples():
+    m = ThrusterModel(_NoiseCfg(), num_envs=4, device="cpu", enable_actuation_noise=True)
+    assert m._act_noise_std == 0.1
+    torch.manual_seed(0)
+    m.apply_dynamics(torch.full((4, 6), 0.3), dt=0.02)
+    s1 = m.state.clone()
+    m.reset(torch.arange(4))
+    torch.manual_seed(1)  # different draw
+    m.apply_dynamics(torch.full((4, 6), 0.3), dt=0.02)
+    s2 = m.state.clone()
+    # Two independent noise draws -> different resulting states (per-step resample).
+    assert not torch.allclose(s1, s2)
+
+
+def test_actuation_noise_independent_of_dr_and_fault():
+    # Noise on, DR off, fault off -> DR/fault buffers stay None.
+    m = ThrusterModel(_NoiseCfg(), num_envs=4, device="cpu", enable_actuation_noise=True)
+    assert m._thrust_coeff is None        # DR buffer not allocated
+    assert m._thruster_health is None     # fault buffer not allocated
+    assert m._act_noise_std == 0.1

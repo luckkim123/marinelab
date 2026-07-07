@@ -39,6 +39,7 @@ class ThrusterModel:
         device: str,
         enable_randomization: bool = False,
         enable_fault: bool = False,
+        enable_actuation_noise: bool = False,
     ) -> None:
         """Initialize the thruster model.
 
@@ -50,6 +51,10 @@ class ThrusterModel:
             enable_fault: Whether to enable per-env per-thruster fault (health) injection.
                 When False, no health buffer is allocated and ``compute_wrench`` skips the
                 health multiply entirely (byte-identical to the fault-free model).
+            enable_actuation_noise: Whether to arm the per-step multiplicative command
+                noise (the THIRD actuation channel, independent of randomization/fault).
+                When False, ``_act_noise_std`` is None and ``apply_dynamics`` is
+                byte-identical (no RNG consumed).
         """
         self.cfg = cfg
         self.num_envs = num_envs
@@ -85,6 +90,15 @@ class ThrusterModel:
         else:
             self._thruster_health = None
 
+        # Per-step multiplicative command noise std (white). Distinct axis from DR
+        # (_thrust_coeff, reset) and fault (_thruster_health, reset): this perturbs the
+        # COMMAND every step. None when disabled -> apply_dynamics skips the multiply
+        # (byte-identical). getattr guards cfgs that predate the field.
+        if enable_actuation_noise:
+            self._act_noise_std = getattr(cfg, "actuation_noise_std", 0.0)
+        else:
+            self._act_noise_std = None
+
     def _setup_buffers(self) -> None:
         """Setup internal buffers."""
         self._state = torch.zeros(self.num_envs, self.cfg.num_thrusters, device=self.device)
@@ -117,6 +131,13 @@ class ThrusterModel:
             commands: Raw thruster commands. Shape: (num_envs, num_thrusters).
             dt: Time step duration.
         """
+        # Per-step multiplicative actuation noise (white). No-op when disabled:
+        # _act_noise_std is None -> commands passes through unchanged (byte-identical).
+        # Applied PRE-clamp: near saturation, positive noise is asymmetrically clipped
+        # by the clamp below (real actuator can't push past its limit) -- intended.
+        if self._act_noise_std is not None and self._act_noise_std > 0.0:
+            noise = torch.randn_like(commands) * self._act_noise_std
+            commands = commands * (1.0 + noise)
         target_state = commands.clamp(-1.0, 1.0)
 
         if self._thrust_coeff is not None:
