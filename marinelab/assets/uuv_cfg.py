@@ -147,6 +147,14 @@ class ThrusterCfg:
     # enable_thrust_curve is True.
     thrust_deadband: float = 0.075
 
+    # Per-step multiplicative actuation noise std (white Gaussian). Only armed when
+    # ThrusterModel receives enable_actuation_noise=True; 0.0 -> disabled. This is the
+    # THIRD actuation channel: distinct from DR (thrust_coefficient spread, reset-time)
+    # and fault (thruster health, reset-time). It perturbs the COMMAND every step:
+    # applied = commanded * (1 + eps), eps ~ N(0, actuation_noise_std). Initial value
+    # arbitrary (thrust unmeasured) -- a sweep target.
+    actuation_noise_std: float = 0.0
+
     # Thruster allocation matrix: wrench = allocation_matrix @ thrusts
     # Shape: (6, num_thrusters) where 6 = [Fx, Fy, Fz, Mx, My, Mz]
     # Default derived from BlueROV2 Heavy 6-thruster layout
