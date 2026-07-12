@@ -20,11 +20,11 @@ Available configurations:
 """
 
 from .rsl_rl_ppo_cfg import (
-    BlueROVHoverPPORunnerCfg,
-    BlueROVHoverTrainPPORunnerCfg,
-    BlueROVHoverEvalPPORunnerCfg,
     BlueROVAttitudePPORunnerCfg,
     BlueROVAttitudeTrainPPORunnerCfg,
+    BlueROVHoverEvalPPORunnerCfg,
+    BlueROVHoverPPORunnerCfg,
+    BlueROVHoverTrainPPORunnerCfg,
 )
 
 __all__ = [

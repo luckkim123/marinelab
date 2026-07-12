@@ -15,10 +15,10 @@ Available Tasks:
 
 import gymnasium as gym
 
+from .attitude_env_cfg import BlueROVAttitudeEnvCfg, BlueROVAttitudeTrainEnvCfg
 from .bluerov_env import BlueROVEnv
 from .bluerov_env_cfg import BlueROVEnvCfg, DomainRandomizationCfg
-from .hover_env_cfg import BlueROVHoverEnvCfg, BlueROVHoverTrainEnvCfg, BlueROVHoverEvalEnvCfg
-from .attitude_env_cfg import BlueROVAttitudeEnvCfg, BlueROVAttitudeTrainEnvCfg
+from .hover_env_cfg import BlueROVHoverEnvCfg, BlueROVHoverEvalEnvCfg, BlueROVHoverTrainEnvCfg
 
 ##
 # Register Gym environments
