@@ -8,6 +8,26 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- DORAEMON `--resume` device-mismatch crash (P3 hygiene, 2026-07-12):
+  `DoraemonScheduler.load_state_dict` now restores `dist._a`/`dist._b` with
+  `.double().cpu()`. A checkpoint loaded with a GPU map_location previously left them on
+  CUDA while `_mins`/`_maxs`/`_ranges` stayed CPU (the class invariant), crashing
+  `entropy()`/`get_flat_params()` on the first step after resume.
+
+### Changed
+
+- Added `[tool.ruff]`/`[tool.pyright]` to pyproject.toml (line-length 120, py310, Google
+  docstrings, marinelab first-party isort) so the format hook is no longer a no-op here;
+  applied the safe autofix subset (isort ordering, one unused import, return-style).
+
+### Removed
+
+- Deprecated `marinelab.physics` shim (pure re-export of `marinelab.core`). All in-repo
+  and downstream (constrained-albc) importers migrated to `marinelab.core`;
+  CONTRIBUTING.md/README.md guidance updated.
+
 ### Added
 
 - DORAEMON curriculum record & replay (`marinelab.algorithms.doraemon`):

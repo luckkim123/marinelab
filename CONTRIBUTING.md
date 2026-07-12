@@ -59,9 +59,9 @@ git add .gitattributes
 
 ### 5. Reuse shared physics
 
-`marinelab.physics.hydrodynamics` and `marinelab.physics.thruster` implement the
-Fossen model and thruster dynamics that all UUV environments share. Import them
-rather than duplicating the physics logic in your task.
+`marinelab.core` implements the Fossen model (`HydrodynamicsModel`) and thruster
+dynamics (`ThrusterModel`) that all UUV environments share. Import them rather
+than duplicating the physics logic in your task.
 
 ---
 

@@ -25,8 +25,8 @@ from isaaclab.envs.ui import BaseEnvWindow
 from isaaclab.markers import BLUE_ARROW_X_MARKER_CFG, CUBOID_MARKER_CFG, VisualizationMarkers
 from isaaclab.utils.math import quat_apply_inverse, quat_from_euler_xyz, quat_mul
 
-# Import shared marine physics models from marinelab.physics
-from marinelab.physics import HydrodynamicsModel, ThrusterModel
+# Import shared marine physics models from marinelab.core
+from marinelab.core import HydrodynamicsModel, ThrusterModel
 
 from .bluerov_env_cfg import BlueROVEnvCfg
 from .rewards import (

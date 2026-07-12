@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from isaaclab.utils import configclass
-from isaaclab.utils.math import quat_apply_inverse, quat_from_euler_xyz, quat_mul
+from isaaclab.utils.math import quat_from_euler_xyz, quat_mul
 
 from .task_base import TaskBase, TaskBaseCfg
 

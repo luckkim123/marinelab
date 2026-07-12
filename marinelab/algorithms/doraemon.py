@@ -791,8 +791,11 @@ class DoraemonScheduler:
             raise ValueError(
                 f"DORAEMON checkpoint has {state['dist_a'].shape[0]} dims but current config expects {ndims}."
             )
-        self.dist._a = state["dist_a"].double()
-        self.dist._b = state["dist_b"].double()
+        # dist._a/_b must stay CPU float64 (the invariant _mins/_maxs/_ranges hold);
+        # a checkpoint loaded with map_location on GPU would otherwise leave them on
+        # CUDA, causing a device mismatch against _ranges in entropy()/get_flat_params().
+        self.dist._a = state["dist_a"].double().cpu()
+        self.dist._b = state["dist_b"].double().cpu()
 
         self._step_count = state["step_count"]
         self._total_episodes = state["total_episodes"]
@@ -891,7 +894,7 @@ class CurriculumReplayer:
 
     def record_episodes(self, *args, **kwargs) -> None:
         """No-op: replay ignores episode statistics."""
-        return None
+        return
 
     def state_dict(self) -> dict:
         """Current distribution only (checkpoint compatibility)."""
@@ -899,7 +902,7 @@ class CurriculumReplayer:
 
     def load_state_dict(self, state: dict) -> None:
         """Replay distribution is schedule-driven; ignore checkpointed dist."""
-        return None
+        return
 
     def export_trajectory(self) -> list[dict]:
         """A replay run does not re-record."""

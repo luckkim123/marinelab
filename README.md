@@ -217,14 +217,9 @@ automatically.
 
 ## Migration note
 
-`marinelab.physics` is a deprecated re-export shim kept for backward
-compatibility. New code should import from `marinelab.core`:
+`marinelab.physics` has been removed. Import physics models from `marinelab.core`:
 
 ```python
-# Deprecated
-from marinelab.physics import HydrodynamicsModel, ThrusterModel
-
-# Preferred
 from marinelab.core import HydrodynamicsModel, ThrusterModel, OceanCurrent
 ```
 
