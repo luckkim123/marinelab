@@ -198,7 +198,7 @@ ALBC_CFG = ArticulationCfg(
             stiffness=100.0,  # Kp: w_n=57.7 rad/s with J~0.15 kg*m^2
             damping=3.0,  # Kd: damping ratio ~0.7 (near critically damped)
             effort_limit_sim=13.0,  # Nm, PhysX hard cap (above motor stall torque 9.5 Nm)
-            velocity_limit_sim=6.28,  # rad/s, 2*pi, PhysX hard cap
+            velocity_limit_sim=3.1,  # rad/s, PhysX hard cap = measured XW540-T260 no-load plateau (2026-07-06)
         ),
     },
 )

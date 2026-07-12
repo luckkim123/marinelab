@@ -222,8 +222,9 @@ class BlueROVEnv(DirectRLEnv):
         self._prev_actions = self._actions.clone()
         self._actions = actions.clone().clamp(-1.0, 1.0)
 
-        # Apply thruster dynamics
-        self._thruster.apply_dynamics(self._actions, self.physics_dt)
+        # Apply thruster dynamics. _pre_physics_step runs once per env step ->
+        # elapsed time between calls is step_dt (= physics_dt * decimation).
+        self._thruster.apply_dynamics(self._actions, self.step_dt)
 
     def _apply_action(self):
         """Apply thruster forces and hydrodynamic forces to the robot."""
@@ -259,7 +260,7 @@ class BlueROVEnv(DirectRLEnv):
         # This must be called after robot.update() which happens at the start of each step
         if self._hydro.apply_added_mass:
             self._hydro.update_physx_state(
-                body_com_acc_w=self._robot.data.body_com_acc_w,
+                body_com_acc_w=self._robot.data.body_com_acc_w[:, self._body_id[0], :],
                 root_quat_w=self._robot.data.root_quat_w,
             )
 

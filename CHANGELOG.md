@@ -10,6 +10,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Thruster first-order lag ran at half speed (P4 sim-fix, 2026-07-12): `bluerov_env.py`
+  passed `physics_dt` to `ThrusterModel.apply_dynamics` from `_pre_physics_step`, which runs
+  once per env step -- elapsed time between calls is `step_dt = physics_dt * decimation`
+  (decimation=2 here), so effective T200 time constants were 2x the configured values. Now
+  passes `step_dt`. Same root cause fixed in constrained-albc (4x there, decimation=4).
+- `update_physx_state` caller in `bluerov_env.py` passed the full body tensor, silently
+  relying on "root == body index 0" inside the `(num_envs, num_bodies, 6)` branch; it now
+  passes `body_com_acc_w[:, self._body_id[0], :]` explicitly. Byte-identical while the hydro
+  body is index 0.
 - DORAEMON `--resume` device-mismatch crash (P3 hygiene, 2026-07-12):
   `DoraemonScheduler.load_state_dict` now restores `dist._a`/`dist._b` with
   `.double().cpu()`. A checkpoint loaded with a GPU map_location previously left them on
@@ -18,6 +27,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- ALBC asset: `velocity_limit_sim` 6.28 -> 3.1 rad/s (P4 sim-fix, 2026-07-12; measured
+  XW540-T260 no-load plateau, onboard 2026-07-06). Paired with the constrained-albc
+  `arm_joint_vel` soft-threshold move 4.189 -> 2.8 rad/s in the same batch to keep the soft
+  constraint inside the hard cap (else it can never fire -- dead constraint).
 - Added `[tool.ruff]`/`[tool.pyright]` to pyproject.toml (line-length 120, py310, Google
   docstrings, marinelab first-party isort) so the format hook is no longer a no-op here;
   applied the safe autofix subset (isort ordering, one unused import, return-style).
