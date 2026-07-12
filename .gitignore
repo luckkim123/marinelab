@@ -4,3 +4,9 @@ __pycache__/
 .venv/
 logs/
 .omc/
+
+# session/tool state dirs — never commit
+.claude/
+.ruff_cache/
+.omx/
+.trash/

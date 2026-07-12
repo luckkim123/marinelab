@@ -8,6 +8,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- README restructured to standard OSS layout (hero/badges/features; core API reference
+  in a collapsible section); `docs/architecture.md` un-staled (P5 docs pass, 2026-07-12).
+- `.gitignore` covers session/tool state dirs (`.claude/`, `.ruff_cache/`, `.omx/`,
+  `.trash/`).
+
 ### Fixed
 
 - Thruster first-order lag ran at half speed (P4 sim-fix, 2026-07-12): `bluerov_env.py`

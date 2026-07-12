@@ -1,106 +1,102 @@
+<div align="center">
+
 # marinelab
+
+**A general-purpose underwater-vehicle (UUV) environment framework for NVIDIA Isaac Lab.**
 
 ![version](https://img.shields.io/badge/version-0.2.0-blue)
 ![license](https://img.shields.io/badge/license-BSD--3--Clause-green)
+![python](https://img.shields.io/badge/python-3.10%2B-blue)
+![isaac-sim](https://img.shields.io/badge/Isaac%20Sim-5.1.0-76b900)
 
-A general-purpose underwater-vehicle (UUV) environment framework on top of
-[Isaac Lab](https://github.com/isaac-sim/IsaacLab).
+[Documentation](docs/) | [Getting Started](#getting-started) | [Contributing](CONTRIBUTING.md)
 
-marinelab separates a reusable physics core from the example environments built
-on it:
+</div>
 
-- **`marinelab.core`** — the stable, reusable framework API: a Fossen-style
-  hydrodynamics model, a first-order thruster model, an injectable ocean-current
-  component, and a setter-based domain-randomization interface. Researchers build
-  on this layer.
-- **`marinelab.tasks.bluerov`** — a reference example: the BlueROV2 hover and
-  attitude environments registered into the Isaac Lab Gym registry. It shows how
-  to wire the core models into a `DirectRLEnv`.
-- **`marinelab.assets`** — UUV configs and USD meshes (BlueROV2 and Hero Agent,
-  tracked with Git LFS).
+## Overview
 
-The intent is that downstream research overlays (for example, the private
-`constrained-albc`) extend marinelab the same way marinelab extends Isaac Lab:
-import the core models, configure them, and randomize through the public API —
-without reaching into private buffers.
+marinelab separates a reusable marine-physics core from the example environments built
+on it. Researchers import and configure the core models — hydrodynamics, thrusters,
+ocean current — through a stable public API, and build their own Isaac Lab tasks on top,
+the same way marinelab itself builds on Isaac Lab. The BlueROV2 task suite is the
+in-repo reference consumer; downstream research overlays are the intended users.
 
----
+## Key Features
 
-## Architecture
+- **Fossen hydrodynamics core**: 6-DOF added mass, linear/quadratic damping, and buoyancy/restoring forces with per-environment parameter buffers.
+- **First-order thruster model**: thruster lag dynamics plus an allocation matrix, advanced with the env step so configured time constants hold.
+- **Injectable ocean current**: one current source shared across hydrodynamics models, with sampling, drift, and explicit set paths.
+- **Setter-based domain randomization**: `set_parameters` / `scale_parameters` always randomize from an immutable base snapshot — no compounding.
+- **Reference BlueROV2 tasks**: five hover/attitude environments registered into the Isaac Lab Gym registry, showing the full wiring pattern.
 
-```
-isaaclab          (clean upstream fork; Docker base image)
-    ^  pip install / import isaaclab
-marinelab         (this repo; public junior deploy layer)
-    ^  pip install / import marinelab
-constrained-albc  (private research overlay; optional)
-```
-
-`marinelab` depends only on `isaaclab`. It does not depend on `constrained-albc`.
-There are no upward dependencies.
-
-Inside marinelab the boundary is just as deliberate:
-
-```
-marinelab/
-  core/     general, reusable physics — the framework API (stable)
-  assets/   UUV configs + USD meshes
-  tasks/    example environments built on core (bluerov is the reference)
-```
-
-`core/` knows nothing about any specific vehicle or task. `tasks/bluerov` is one
-concrete consumer of `core/`; a research overlay is another. Keeping vehicles and
-reward design out of `core/` is what lets multiple overlays share one physics
-implementation.
-
----
-
-## Quickstart
+## Getting Started
 
 ### Prerequisites
 
-- Docker with NVIDIA runtime, or an existing editable isaaclab install.
-- Git LFS (`apt-get install git-lfs` if absent).
+- Docker with the NVIDIA runtime, or an existing editable Isaac Lab install
+- Git LFS (`apt-get install git-lfs` if absent) — USD meshes are LFS-tracked
+- Python 3.10+ (the Isaac Sim interpreter)
 
-### Step 1 — clone and pull meshes
+### Installation
 
 ```bash
 git clone https://github.com/luckkim123/marinelab.git /workspace/marinelab
-cd /workspace/marinelab
-git lfs install
-git lfs pull
-```
+cd /workspace/marinelab && git lfs install && git lfs pull
 
-### Step 2 — install into the isaaclab environment
-
-```bash
 cd /workspace/isaaclab
 ./isaaclab.sh -p -m pip install -e /workspace/marinelab
 ```
 
-`isaaclab` and `isaaclab_assets` are **not** pip dependencies of marinelab.
-They are provided by the isaaclab editable install already present in the environment.
+`isaaclab` and `isaaclab_assets` are **not** pip dependencies — they are provided by
+the Isaac Lab editable install already present in the environment.
+See [docs/installation.md](docs/installation.md) for the Docker deploy path.
 
-### Step 3 — verify
-
-Run the BlueROV hover environment for a few steps to confirm registration:
+### Verify
 
 ```bash
 cd /workspace/isaaclab
 ./isaaclab.sh -p scripts/environments/random_agent.py \
-    --task Isaac-BlueROV-Hover-Direct-v0 \
-    --num_envs 4 --headless
+    --task Isaac-BlueROV-Hover-Direct-v0 --num_envs 4 --headless
 ```
 
-> Note: `import marinelab` outside a launched Isaac Sim app will raise
-> `No module named pxr` because the environment transitively needs the USD
-> runtime. Always verify through `./isaaclab.sh -p` or the Docker container.
+> `import marinelab` outside a launched Isaac Sim app raises `No module named pxr`
+> (the USD runtime is needed transitively). Always run through `./isaaclab.sh -p`
+> or the Docker container.
 
----
+## Quick Start
 
-## Core API reference
+Build a current, inject it into a hydrodynamics model, step the physics, and
+randomize through the public API:
 
-All of the following are importable from `marinelab.core`.
+```python
+import torch
+from marinelab.core import HydrodynamicsModel, OceanCurrent
+from marinelab.assets import BlueROVHydrodynamicsCfg, OceanCurrentCfg
+
+num_envs, device = 4096, "cuda"
+
+current = OceanCurrent(num_envs, device, OceanCurrentCfg())
+hydro = HydrodynamicsModel(num_envs, device, BlueROVHydrodynamicsCfg(),
+                           dt=0.005, current=current)
+
+# Per-step: body-frame hydrodynamic wrench (includes the injected current).
+forces, torques = hydro.compute_forces(root_lin_vel_w, root_ang_vel_w, root_quat_w)
+
+# Per-reset domain randomization — all through the public API.
+env_ids = torch.arange(num_envs, device=device)
+hydro.scale_parameters(env_ids, added_mass=(0.8, 1.2), linear_damping=(0.8, 1.2))
+```
+
+`marinelab.tasks.bluerov.bluerov_env.BlueROVEnv` is the minimal end-to-end example of
+this pattern inside a `DirectRLEnv`.
+
+## Core API
+
+All core models are importable from `marinelab.core`
+(`marinelab.physics` was removed — update old imports).
+
+<details>
+<summary><strong>API reference</strong></summary>
 
 ### `HydrodynamicsModel`
 
@@ -137,6 +133,7 @@ ThrusterModel(cfg, num_envs, device, enable_randomization=False)
 ```
 
 - `apply_dynamics(commands, dt)` — advance the per-thruster first-order state.
+  Call once per env step with the elapsed `step_dt` (not the raw physics dt).
 - `compute_wrench()` — `(forces, torques)` in the body frame.
 - `randomize_parameters(env_ids, thrust_coeff_scale, time_constant_scale)`.
 - `reset(env_ids)`.
@@ -161,71 +158,23 @@ OceanCurrent(num_envs, device, cfg)
 A dataclass bundle of the per-environment hydrodynamic parameters returned by
 `get_parameters` / `base_parameters`.
 
----
-
-## Researcher workflow
-
-Build a current, inject it into one or more hydrodynamics models, step the
-physics, and randomize through the public API:
-
-```python
-import torch
-from marinelab.core import HydrodynamicsModel, OceanCurrent
-from marinelab.assets import BlueROVHydrodynamicsCfg, OceanCurrentCfg
-
-num_envs, device = 4096, "cuda"
-
-# One shared current source, injected into the model.
-current = OceanCurrent(num_envs, device, OceanCurrentCfg())
-hydro = HydrodynamicsModel(num_envs, device, BlueROVHydrodynamicsCfg(),
-                           dt=0.005, current=current)
-
-# Per-step: compute body-frame hydrodynamic wrench.
-forces, torques = hydro.compute_forces(root_lin_vel_w, root_ang_vel_w, root_quat_w)
-
-# Per-reset domain randomization — all through the public API.
-env_ids = torch.arange(num_envs, device=device)
-hydro.scale_parameters(env_ids, added_mass=(0.8, 1.2), linear_damping=(0.8, 1.2))
-cob = hydro.base_parameters.center_of_buoyancy[env_ids].clone()
-cob[:, 2] += torch.rand(num_envs, device=device) * 0.04 - 0.02
-hydro.set_parameters(env_ids, center_of_buoyancy=cob)
-```
-
-`marinelab.tasks.bluerov.bluerov_env.BlueROVEnv` is the minimal end-to-end
-example of this pattern inside a `DirectRLEnv`; the private `constrained-albc`
-overlay is the full research example.
-
----
-
-## Domain randomization
+### Domain randomization
 
 Two entry points, both writing per-environment parameter buffers:
 
 - **`set_parameters(env_ids, **fields)`** — absolute writes. You compute the value
-  (for example, base CoB plus a sampled offset) and assign it. Use this when the
-  randomization is not a simple multiple of the base value.
+  (for example, base CoB plus a sampled offset) and assign it.
 - **`scale_parameters(env_ids, **ranges)`** — convenience for the common case:
   each field becomes `base * uniform(lo, hi)`.
 
-Both read from an immutable snapshot of the base parameters captured at
-construction (`base_parameters`), so repeated randomization always scales from the
-original configuration rather than compounding. Changing volume or water density
-through `set_parameters`/`scale_parameters` recomputes the buoyancy force
-automatically.
+Both read from an immutable snapshot of the base parameters captured at construction
+(`base_parameters`), so repeated randomization always scales from the original
+configuration rather than compounding. Changing volume or water density recomputes
+the buoyancy force automatically.
 
----
+</details>
 
-## Migration note
-
-`marinelab.physics` has been removed. Import physics models from `marinelab.core`:
-
-```python
-from marinelab.core import HydrodynamicsModel, ThrusterModel, OceanCurrent
-```
-
----
-
-## Registered environments
+## Registered Environments
 
 | Task ID | Description |
 |:--------|:------------|
@@ -235,22 +184,27 @@ from marinelab.core import HydrodynamicsModel, ThrusterModel, OceanCurrent
 | `Isaac-BlueROV-Attitude-Direct-v0` | Attitude control — demo / random agent |
 | `Isaac-BlueROV-Attitude-Train-Direct-v0` | Attitude control — training variant |
 
----
+## Project Structure
 
-## Docker
+```
+marinelab/
+├── marinelab/
+│   ├── core/        # reusable physics — the framework API (stable)
+│   ├── assets/      # UUV configs + USD meshes (Git LFS)
+│   ├── tasks/       # example environments built on core (bluerov is the reference)
+│   ├── algorithms/  # DORAEMON domain-randomization engine
+│   └── utils/
+└── docs/            # architecture + installation
+```
 
-See [docs/installation.md](docs/installation.md) for the Docker-based deploy path.
+`marinelab` depends only on `isaaclab`; there are no upward dependencies. `core/`
+knows nothing about any specific vehicle or task — see
+[docs/architecture.md](docs/architecture.md) for the layering rationale.
 
----
+## Contributing
 
-## Documentation
-
-- [Installation guide](docs/installation.md) — local and Docker paths
-- [Architecture overview](docs/architecture.md) — layer diagram, subpackage roles
-- [Contributing](CONTRIBUTING.md) — how to add new UUV tasks
-- [Changelog](CHANGELOG.md)
-
----
+Contributions that add new UUV vehicles or tasks on top of `core/` are welcome —
+see [CONTRIBUTING.md](CONTRIBUTING.md). Changelog: [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
