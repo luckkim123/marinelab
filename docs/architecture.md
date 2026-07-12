@@ -9,7 +9,8 @@ there are no upward dependencies.
 ```
 +---------------------------------------------------------------------+
 |  constrained-albc  (private research overlay)                       |
-|  constrained_full_albc + TDC + student distillation + analysis      |
+|  ConstraintTRPO ALBC (attitude + full-DOF) + TDC + student          |
+|  distillation + analysis                                            |
 |  pip install -e constrained-albc   (on top of marinelab)            |
 +----------------------------------+----------------------------------+
                                    |  import marinelab
@@ -58,7 +59,7 @@ marinelab/
     assets/              UUV robot configurations and 3D meshes.
         uuv_cfg.py       Shared base config for UUV articulations.
         bluerov/         BlueROV2 asset config + USD meshes (Git LFS).
-        hero_agent/      Hero Agent asset config + USD/DAE meshes (Git LFS).
+        albc/            ALBC asset config + USD/DAE meshes (Git LFS).
 
     core/                Stable framework API. Import from here.
         hydrodynamics.py Fossen 6-DOF model: added mass, damping, restoring
@@ -69,10 +70,9 @@ marinelab/
         parameters.py    HydroParams dataclass + default_rigid_inertia helper.
         volume.py        Buoyancy volume calculation for UUV geometries.
 
-    physics/             Deprecated re-export shim. Re-exports HydrodynamicsModel,
-                         ThrusterModel, OceanCurrent, and the Cfg classes from
-                         marinelab.core so existing `from marinelab.physics import`
-                         imports keep working. New code imports marinelab.core.
+    algorithms/          Promoted DR engine, shared across overlays.
+        doraemon.py      DORAEMON DR curriculum (Tiboni et al., ICLR 2024):
+                         adaptive Beta-distribution scheduling. DoraemonCfg.
 
     tasks/               Gym-registered Isaac Lab environments.
         bluerov/         Five BlueROV2 Direct-task environments:
@@ -126,8 +126,9 @@ USD load errors at simulation startup.
 ## Constrained-albc relationship
 
 `constrained-albc` is a private overlay that sits above marinelab. It imports
-`marinelab.physics` for the Fossen model and `marinelab.assets` for UUV
-configurations. There are zero cross-imports in the other direction: marinelab
+`marinelab.core` for the Fossen model and thruster dynamics, `marinelab.assets`
+for UUV configurations, and `marinelab.algorithms.doraemon` for the DR
+curriculum. There are zero cross-imports in the other direction: marinelab
 has no references to constrained-albc code. This clean separation means
 marinelab can be deployed to juniors independently, without exposing any private
 research code.
