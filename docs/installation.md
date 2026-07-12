@@ -7,21 +7,10 @@ editable install, or via Docker with isaaclab as the base image.
 
 ## Prerequisites
 
-### Git LFS
-
-marinelab stores UUV meshes (`.usd`, `.dae`, `.obj`) in Git LFS. Install it
-before cloning if it is not already present:
-
-```bash
-apt-get install git-lfs
-```
-
-### isaaclab and isaaclab_assets
-
-`isaaclab` and `isaaclab_assets` are **not** pip dependencies of marinelab.
-They are provided by the isaaclab editable install that is already present in
-the environment (local) or baked into the Docker base image (Docker). Do not
-list them in `pyproject.toml` or attempt to install them separately.
+| Requirement | Why | Provided by |
+|:---|:---|:---|
+| Git LFS | marinelab stores UUV meshes (`.usd`, `.dae`, `.obj`) in Git LFS | `apt-get install git-lfs` before cloning |
+| `isaaclab` + `isaaclab_assets` | **Not** pip dependencies of marinelab — do not list in `pyproject.toml` or install separately | Local: the isaaclab editable install already on the host. Docker: baked into the base image |
 
 ---
 

@@ -26,7 +26,8 @@ there are no upward dependencies.
 +---------------------------------------------------------------------+
 ```
 
-**Dependency direction:** downward only.
+**Dependency direction: downward only.**
+
 - marinelab imports isaaclab; it never imports constrained-albc.
 - constrained-albc imports marinelab (for shared physics and assets).
 - isaaclab has no knowledge of either overlay.
@@ -51,60 +52,47 @@ fork — the isaaclab fork remains a zero-touch clean upstream fork.
 
 ## Subpackage roles
 
-```
-marinelab/
-    __init__.py          Extension registration entry point.
-                         Imports tasks/ so Gym IDs register on load.
+All paths are relative to `marinelab/marinelab/`. `core/` is the stable
+framework API — import from there, not from `tasks/`.
 
-    assets/              UUV robot configurations and 3D meshes.
-        uuv_cfg.py       Shared base config for UUV articulations.
-        bluerov/         BlueROV2 asset config + USD meshes (Git LFS).
-        albc/            ALBC asset config + USD/DAE meshes (Git LFS).
-
-    core/                Stable framework API. Import from here.
-        hydrodynamics.py Fossen 6-DOF model: added mass, damping, restoring
-                         forces; setter-based DR API. HydrodynamicsModel.
-        thruster.py      First-order thruster dynamics + allocation matrix.
-                         ThrusterModel, ThrusterCfg.
-        ocean_current.py Injectable ocean-current component. OceanCurrent.
-        parameters.py    HydroParams dataclass + default_rigid_inertia helper.
-        volume.py        Buoyancy volume calculation for UUV geometries.
-
-    algorithms/          Promoted DR engine, shared across overlays.
-        doraemon.py      DORAEMON DR curriculum (Tiboni et al., ICLR 2024):
-                         adaptive Beta-distribution scheduling. DoraemonCfg.
-
-    tasks/               Gym-registered Isaac Lab environments.
-        bluerov/         Five BlueROV2 Direct-task environments:
-                           Hover (demo / train / eval),
-                           Attitude (demo / train).
-            bluerov_env.py      DirectRLEnv subclass.
-            bluerov_env_cfg.py  Base @configclass config.
-            hover_env_cfg.py    Hover task config.
-            attitude_env_cfg.py Attitude task config.
-            agents/             RL agent configs (rsl_rl, skrl, sb3, rl_games).
-            mdp/                Domain randomization events.
-            rewards/            Reward terms and reward manager.
-            tasks/              Task wrappers (hover_task, attitude_task).
-
-    utils/               Deprecated re-export shim. utils/volume re-exports
-                         marinelab.core.volume for backward compatibility.
-```
+| Path | Role |
+|:---|:---|
+| `__init__.py` | Extension registration entry point; imports `tasks/` so Gym IDs register on load |
+| `assets/` | UUV robot configurations and 3D meshes |
+| `assets/uuv_cfg.py` | Shared base config for UUV articulations |
+| `assets/bluerov/` | BlueROV2 asset config + USD meshes (Git LFS) |
+| `assets/albc/` | ALBC asset config + USD/DAE meshes (Git LFS) |
+| `core/` | Stable framework API |
+| `core/hydrodynamics.py` | Fossen 6-DOF model (added mass, damping, restoring forces) + setter-based DR API. Class: `HydrodynamicsModel` |
+| `core/thruster.py` | First-order thruster dynamics + allocation matrix. Classes: `ThrusterModel`, `ThrusterCfg` |
+| `core/ocean_current.py` | Injectable ocean-current component. Class: `OceanCurrent` |
+| `core/parameters.py` | `HydroParams` dataclass + `default_rigid_inertia` helper |
+| `core/volume.py` | Buoyancy volume calculation for UUV geometries |
+| `algorithms/` | Promoted DR engine, shared across overlays |
+| `algorithms/doraemon.py` | DORAEMON DR curriculum (Tiboni et al., ICLR 2024): adaptive Beta-distribution scheduling. Class: `DoraemonCfg` |
+| `tasks/bluerov/` | Five BlueROV2 Direct-task environments: Hover (demo/train/eval), Attitude (demo/train) |
+| `tasks/bluerov/bluerov_env.py` | `DirectRLEnv` subclass (Isaac Lab's direct-workflow RL environment base class) |
+| `tasks/bluerov/bluerov_env_cfg.py` | Base `@configclass` config (Isaac Lab's environment-config decorator) |
+| `tasks/bluerov/hover_env_cfg.py` | Hover task config |
+| `tasks/bluerov/attitude_env_cfg.py` | Attitude task config |
+| `tasks/bluerov/agents/` | RL agent configs (rsl_rl, skrl, sb3, rl_games) |
+| `tasks/bluerov/mdp/` | Domain randomization events |
+| `tasks/bluerov/rewards/` | Reward terms and reward manager |
+| `tasks/bluerov/tasks/` | Task wrappers (`hover_task`, `attitude_task`) |
+| `utils/` | Deprecated re-export shim — `utils/volume` re-exports `marinelab.core.volume` for backward compatibility |
 
 ---
 
 ## Data flow at runtime
 
-```
-Isaac Sim app starts
-    -> Isaac Lab loads isaaclab.extensions entry-points
-    -> marinelab.__init__ is imported
-    -> marinelab.tasks.__init__ imports tasks.bluerov.__init__
-    -> gymnasium.register() called for all 5 BlueROV IDs
-    -> random_agent.py (or training script) calls gym.make("Isaac-BlueROV-*")
-    -> BluerovEnv.__init__ instantiates physics (hydrodynamics + thruster)
-       and loads USD assets from marinelab/assets/bluerov/meshes/
-```
+1. Isaac Sim app starts.
+2. Isaac Lab loads all `isaaclab.extensions` entry-points.
+3. `marinelab.__init__` is imported.
+4. `marinelab.tasks.__init__` imports `tasks.bluerov.__init__`.
+5. `gymnasium.register()` runs for all 5 BlueROV IDs.
+6. `random_agent.py` (or a training script) calls `gym.make("Isaac-BlueROV-*")`.
+7. `BluerovEnv.__init__` instantiates physics (hydrodynamics + thruster) and
+   loads USD assets from `marinelab/assets/bluerov/meshes/`.
 
 ---
 
@@ -125,10 +113,13 @@ USD load errors at simulation startup.
 
 ## Constrained-albc relationship
 
-`constrained-albc` is a private overlay that sits above marinelab. It imports
-`marinelab.core` for the Fossen model and thruster dynamics, `marinelab.assets`
-for UUV configurations, and `marinelab.algorithms.doraemon` for the DR
-curriculum. There are zero cross-imports in the other direction: marinelab
-has no references to constrained-albc code. This clean separation means
-marinelab can be deployed to juniors independently, without exposing any private
+`constrained-albc` is a private overlay that sits above marinelab. It imports:
+
+- `marinelab.core` — the Fossen model and thruster dynamics
+- `marinelab.assets` — UUV configurations
+- `marinelab.algorithms.doraemon` — the DR curriculum
+
+There are zero cross-imports in the other direction: marinelab has no
+references to constrained-albc code. This clean separation means marinelab
+can be deployed to juniors independently, without exposing any private
 research code.

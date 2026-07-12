@@ -9,17 +9,15 @@ to keep the codebase consistent before opening a pull request.
 
 ### 1. Create a task directory
 
-Add a new subdirectory under `marinelab/tasks/`:
+Add `marinelab/tasks/<your_vehicle>/` with these files:
 
-```
-marinelab/tasks/
-    <your_vehicle>/
-        __init__.py          # gym.register calls
-        <vehicle>_env.py     # DirectRLEnv subclass
-        <vehicle>_env_cfg.py # environment config (@configclass)
-        agents/              # RL agent configs (rsl_rl, skrl, sb3 ...)
-        mdp/                 # events, rewards, observations
-```
+| File | Purpose |
+|:---|:---|
+| `__init__.py` | `gym.register` calls |
+| `<vehicle>_env.py` | `DirectRLEnv` subclass (Isaac Lab's direct-workflow RL environment base class) |
+| `<vehicle>_env_cfg.py` | Environment config (`@configclass`, Isaac Lab's config decorator) |
+| `agents/` | RL agent configs (rsl_rl, skrl, sb3, ...) |
+| `mdp/` | Events, rewards, observations |
 
 ### 2. Register environments in `__init__.py`
 
