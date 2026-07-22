@@ -59,9 +59,14 @@ class ALBCHydrodynamicsCfg(HydrodynamicsCfg):
     # Cd_cross=1.17, Cd_axial=1.0, with appendage correction
     quadratic_damping: tuple[float, ...] = (39.0, 39.0, 15.0, 1.0, 1.0, 0.5)
 
-    # Volume (m^3): pure cylinder 0.00827 + 8.8% appendage = 0.009
-    # Buoyancy = 998 * 0.009 * 9.81 = 88.1 N
-    volume: float = 0.009
+    # Volume (m^3): measurement-recentered to neutral net buoyancy.
+    # hull 0.00790 + buoy 0.00268 = 0.01058 -> 998 * 0.01058 * 9.81 = 103.6 N,
+    # matching the measured operated dry mass 10.592 kg (weight budget 104.10 N, -0.5 N).
+    # The old 0.009 was +1.045 kgf net-positive. Hull buoyancy alone = 998*0.00790*9.81 = 77.3 N.
+    # NOTE: 0.00790 < the earlier geometric "pure cylinder 0.00827" estimate, so that
+    # geometric figure is suspect (likely over-estimated); this value is empirical, not derived.
+    # Upgrade path: resolve with a real hull displacement measurement.
+    volume: float = 0.00790
 
     body_name: str = "base"
 
