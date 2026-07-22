@@ -12,6 +12,24 @@ editable install, or via Docker with isaaclab as the base image.
 | Git LFS | marinelab stores UUV meshes (`.usd`, `.dae`, `.obj`) in Git LFS | `apt-get install git-lfs` before cloning |
 | `isaaclab` + `isaaclab_assets` | **Not** pip dependencies of marinelab — do not list in `pyproject.toml` or install separately | Local: the isaaclab editable install already on the host. Docker: baked into the base image |
 
+### Do not create a conda or venv environment
+
+Isaac Sim ships its own Python interpreter. marinelab installs into that
+interpreter, so **no environment should be created for this repo at all** — not
+conda, not venv, not uv.
+
+This matters because `isaaclab.sh` picks its interpreter from the environment
+(`extract_python_exe`): it uses `$CONDA_PREFIX/bin/python` when `CONDA_PREFIX` is
+set, `$VIRTUAL_ENV/bin/python` when `VIRTUAL_ENV` is set, and only otherwise the
+Isaac Sim python. So an active environment silently redirects even the
+`./isaaclab.sh -p -m pip install` command below, and marinelab lands in a
+site-packages that Isaac Sim never reads. The symptom is a successful-looking
+install followed by `ModuleNotFoundError: marinelab` (or `pxr`) at task launch.
+
+Isaac Lab upstream does document a conda path (`isaaclab.sh --conda`). marinelab
+does not use it — deactivate any environment before installing, and run
+everything through `./isaaclab.sh -p` or, inside Docker, `/isaac-sim/python.sh`.
+
 ---
 
 ## Path A — Local install

@@ -39,6 +39,12 @@ in-repo reference consumer; downstream research overlays are the intended users.
 
 ### Installation
 
+> **No conda, no venv.** Isaac Sim ships its own Python interpreter and marinelab
+> installs into that one — do not create an environment for this repo. If a conda
+> or virtual env is active, `isaaclab.sh -p` switches to that interpreter instead,
+> and the install lands where Isaac Sim never looks. Deactivate any environment
+> first — see [docs/installation.md](docs/installation.md#do-not-create-a-conda-or-venv-environment).
+
 ```bash
 git clone https://github.com/luckkim123/marinelab.git /workspace/marinelab
 cd /workspace/marinelab && git lfs install && git lfs pull
