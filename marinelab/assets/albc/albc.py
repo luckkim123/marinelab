@@ -48,16 +48,26 @@ class ALBCHydrodynamicsCfg(HydrodynamicsCfg):
 
     # Added mass [surge, sway, heave, roll, pitch, yaw]
     # Capped for explicit integration stability: M_a[i] < I_rigid[i]
-    # surge/sway=8.0 (theory 8.25, capped), heave=1.0, roll/pitch=0.09, yaw=0.035
-    added_mass: tuple[float, ...] = (8.0, 8.0, 1.0, 0.09, 0.09, 0.035)
+    # surge/sway=8.0 (theory 8.25, capped), heave=8.0 (Stonefish decay-measured
+    # A=15.0 but cap < body_mass 9.18 binds; surge-precedent ratio 0.87),
+    # roll/pitch/yaw kept: Stonefish-measured EFFECTIVE I+A already matches the
+    # post-stability-factor effective values (pitch 0.133-0.148 vs 0.144, yaw
+    # 0.042-0.052 vs 0.055). Source: Stonefish base-rig measurement 2026-07-27
+    # (vault krit/simulator/docs/stonefish-hydro-measurement-2026-07-27.md).
+    added_mass: tuple[float, ...] = (8.0, 8.0, 8.0, 0.09, 0.09, 0.035)
 
-    # Linear damping [surge, sway, heave, roll, pitch, yaw] (skin friction + appendage)
-    # ITTC-1957 with x2.2 roughness+appendage correction
-    linear_damping: tuple[float, ...] = (2.0, 2.0, 1.5, 0.3, 0.3, 0.15)
+    # Linear damping [surge, sway, heave, roll, pitch, yaw]
+    # Stonefish-measured effective (base-rig decay/terminal, 2026-07-27):
+    # rotational linear damping ~0 (smooth hull, skin friction only).
+    # Previous analytical nominal (ITTC-1957 x2.2): (2.0, 2.0, 1.5, 0.3, 0.3, 0.15)
+    linear_damping: tuple[float, ...] = (0.5, 0.5, 1.6, 0.03, 0.03, 0.002)
 
-    # Quadratic damping [surge, sway, heave, roll, pitch, yaw] (form drag + appendage)
-    # Cd_cross=1.17, Cd_axial=1.0, with appendage correction
-    quadratic_damping: tuple[float, ...] = (39.0, 39.0, 15.0, 1.0, 1.0, 0.5)
+    # Quadratic damping [surge, sway, heave, roll, pitch, yaw]
+    # Stonefish-measured (steady thrust=drag LSQ + decay, 2026-07-27):
+    # translational 3-8x and yaw ~45x below the old analytical nominal
+    # (39, 39, 15, 1, 1, 0.5). surge/sway = symmetric mid-band (measured
+    # surge 7.6-11.5, sway 4.9-7.4; gripper asymmetry).
+    quadratic_damping: tuple[float, ...] = (8.0, 8.0, 22.7, 1.2, 1.2, 0.011)
 
     # Volume (m^3): measurement-recentered to neutral net buoyancy.
     # hull 0.00790 + buoy 0.00268 = 0.01058 -> 998 * 0.01058 * 9.81 = 103.6 N,
