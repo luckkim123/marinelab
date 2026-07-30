@@ -77,10 +77,16 @@ class ThrusterModel:
             self._thrust_coeff = torch.full((num_envs,), cfg.thrust_coefficient, device=device)
             self._time_constant_up = torch.full((num_envs,), cfg.time_constant_up, device=device)
             self._time_constant_down = torch.full((num_envs,), cfg.time_constant_down, device=device)
+            # Per-env SATURATION CEILING. Distinct from _thrust_coeff: the coefficient is a
+            # GAIN applied before the clamp (moves where in the command range saturation
+            # begins), while this is the clamp bound itself (moves the achievable wrench).
+            # Randomizing the gain alone leaves every env saturating at the same force.
+            self._max_thrust = torch.full((num_envs,), cfg.max_thrust, device=device)
         else:
             self._thrust_coeff = None
             self._time_constant_up = None
             self._time_constant_down = None
+            self._max_thrust = None
 
         # Per-env per-thruster health in [0, 1] (0 = dead, 1 = nominal). Distinct from
         # DR: a fault models an actuator FAILING, not a physical-parameter spread. Only
@@ -194,7 +200,11 @@ class ThrusterModel:
         if self._thruster_health is not None:
             thrust_magnitude = thrust_magnitude * self._thruster_health
 
-        thrust_magnitude = thrust_magnitude.clamp(-self.cfg.max_thrust, self.cfg.max_thrust)
+        if self._max_thrust is not None:
+            ceiling = self._max_thrust.unsqueeze(-1)
+            thrust_magnitude = torch.clamp(thrust_magnitude, -ceiling, ceiling)
+        else:
+            thrust_magnitude = thrust_magnitude.clamp(-self.cfg.max_thrust, self.cfg.max_thrust)
 
         body_wrench = torch.einsum("ij,nj->ni", self._allocation_matrix, thrust_magnitude)
 
@@ -236,6 +246,7 @@ class ThrusterModel:
         env_ids: torch.Tensor,
         thrust_coeff_scale: tuple[float, float] = (0.8, 1.2),
         time_constant_scale: tuple[float, float] = (0.8, 1.2),
+        max_thrust_scale: tuple[float, float] = (1.0, 1.0),
     ) -> None:
         """Randomize thruster parameters for specified environments.
 
@@ -243,6 +254,9 @@ class ThrusterModel:
             env_ids: Environment indices to randomize.
             thrust_coeff_scale: Scale range for thrust coefficient.
             time_constant_scale: Scale range for time constants.
+            max_thrust_scale: Scale range for the saturation ceiling. Defaults to
+                (1.0, 1.0) = OFF, so callers that predate this axis stay
+                numerically identical to the fixed-ceiling model.
         """
         if self._thrust_coeff is None:
             return
@@ -261,3 +275,9 @@ class ThrusterModel:
         )
         self._time_constant_up[env_ids] = self.cfg.time_constant_up * time_scale
         self._time_constant_down[env_ids] = self.cfg.time_constant_down * time_scale
+
+        mt_scale = (
+            torch.rand(num_envs, device=self.device) * (max_thrust_scale[1] - max_thrust_scale[0])
+            + max_thrust_scale[0]
+        )
+        self._max_thrust[env_ids] = self.cfg.max_thrust * mt_scale
