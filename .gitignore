@@ -10,3 +10,9 @@ logs/
 .ruff_cache/
 .omx/
 .trash/
+
+# --- Code-graph indexes (regenerated from source; .graphifyignore stays tracked) ---
+.graphify/
+graphify-out/
+.code-review-graph/
+.tokensave/
