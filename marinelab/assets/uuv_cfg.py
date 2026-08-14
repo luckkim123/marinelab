@@ -140,11 +140,20 @@ class ThrusterCfg:
     # When True, applies a normalized-command deadband + signed-square curve
     # so the sim thruster matches the real T200's zero-thrust deadzone and
     # quadratic (T ~ command^2) propeller law instead of a linear map.
+    # BEFORE FLIPPING THIS TO True: re-derive thrust_deadband below in the SAME
+    # edit. Its current value is wrong and is inert only because this is False.
+    # Enabling the curve is item 3 of plant_change_batch_v2 (omx wiki), which is
+    # gated as a unit on the T200 command-to-thrust bench curve -- the same
+    # measurement that supplies the correct deadband.
     enable_thrust_curve: bool = False
     # Deadband half-width in normalized command space [-1, 1]: |state| below
     # this produces zero thrust. 0.075 = MarineGym T200 fit (also ~0.0625 from
     # the +/-25 us PWM deadband over the +/-400 us half-range). Only used when
     # enable_thrust_curve is True.
+    # WRONG, measured on the board 2026-08-14: the real deadband is ~0.16 of
+    # half-span and ASYMMETRIC (-0.167 / +0.150). The 0.075 fit assumed +/-25 us
+    # of a +/-400 us half-span; the board's numbers are +/-48 us of +/-300 us.
+    # A single symmetric scalar cannot express the measured asymmetry either.
     thrust_deadband: float = 0.075
 
     # Per-step multiplicative actuation noise std (white Gaussian). Only armed when
