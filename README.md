@@ -198,8 +198,7 @@ marinelab/
 │   ├── core/        # reusable physics — the framework API (stable)
 │   ├── assets/      # UUV configs + USD meshes (Git LFS)
 │   ├── tasks/       # example environments built on core (bluerov is the reference)
-│   ├── algorithms/  # DORAEMON domain-randomization engine
-│   └── utils/
+│   └── algorithms/  # DORAEMON domain-randomization engine
 └── docs/            # architecture + installation
 ```
 

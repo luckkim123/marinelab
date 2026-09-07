@@ -79,7 +79,6 @@ framework API — import from there, not from `tasks/`.
 | `tasks/bluerov/mdp/` | Domain randomization events |
 | `tasks/bluerov/rewards/` | Reward terms and reward manager |
 | `tasks/bluerov/tasks/` | Task wrappers (`hover_task`, `attitude_task`) |
-| `utils/` | Deprecated re-export shim — `utils/volume` re-exports `marinelab.core.volume` for backward compatibility |
 
 ---
 
