@@ -235,7 +235,6 @@ class EpisodeBuffer:
     xi: torch.Tensor = field(init=False)
     returns: torch.Tensor = field(init=False)
     success: torch.Tensor = field(init=False)
-    log_probs: torch.Tensor = field(init=False)
     _count: int = field(init=False, default=0)
     _write_idx: int = field(init=False, default=0)
 
@@ -243,14 +242,12 @@ class EpisodeBuffer:
         self.xi = torch.zeros(self.capacity, self.ndims, device=self.device)
         self.returns = torch.zeros(self.capacity, device=self.device)
         self.success = torch.zeros(self.capacity, device=self.device)
-        self.log_probs = torch.zeros(self.capacity, device=self.device)
 
     def add(
         self,
         xi: torch.Tensor,
         returns: torch.Tensor,
         success: torch.Tensor,
-        log_probs: torch.Tensor,
     ) -> None:
         """Batch insert episodes. Wraps around if capacity exceeded."""
         n = xi.shape[0]
@@ -261,31 +258,27 @@ class EpisodeBuffer:
             xi = xi[tail:]
             returns = returns[tail:]
             success = success[tail:]
-            log_probs = log_probs[tail:]
             n = self.capacity
         start = self._write_idx % self.capacity
         if start + n <= self.capacity:
             self.xi[start : start + n] = xi
             self.returns[start : start + n] = returns
             self.success[start : start + n] = success
-            self.log_probs[start : start + n] = log_probs
         else:
             first = self.capacity - start
             self.xi[start:] = xi[:first]
             self.returns[start:] = returns[:first]
             self.success[start:] = success[:first]
-            self.log_probs[start:] = log_probs[:first]
             self.xi[: n - first] = xi[first:]
             self.returns[: n - first] = returns[first:]
             self.success[: n - first] = success[first:]
-            self.log_probs[: n - first] = log_probs[first:]
         self._write_idx += n
         self._count = min(self._count + n, self.capacity)
 
-    def get_all(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def get_all(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Return valid entries."""
         n = self._count
-        return self.xi[:n], self.returns[:n], self.success[:n], self.log_probs[:n]
+        return self.xi[:n], self.returns[:n], self.success[:n]
 
     def clear(self) -> None:
         """Reset buffer."""
@@ -304,7 +297,7 @@ class DoraemonScheduler:
     Single constrained optimization: max H(phi) s.t. Ghat >= alpha, KL <= eps.
     When infeasible (hard_performance_constraint): inverted problem first.
     Binary success: episode_return >= performance_lb.
-    Unnormalized IS with stored per-episode log probs.
+    Unnormalized IS against the previous distribution, evaluated live.
     """
 
     def __init__(
@@ -371,10 +364,9 @@ class DoraemonScheduler:
         xi: torch.Tensor,
         returns: torch.Tensor,
         success: torch.Tensor,
-        log_probs: torch.Tensor,
     ) -> None:
         """Record completed episodes into the buffer."""
-        self.buffer.add(xi, returns, success, log_probs)
+        self.buffer.add(xi, returns, success)
         self._total_episodes += xi.shape[0]
 
     # ------------------------------------------------------------------
@@ -389,7 +381,7 @@ class DoraemonScheduler:
         2. If feasible (Ghat >= alpha): main optimization
         3. If infeasible + hard_constraint: inverted problem -> main optimization
         """
-        xi, _returns, success, log_probs = self.buffer.get_all()
+        xi, _returns, success = self.buffer.get_all()
         n = xi.shape[0]
 
         metrics: dict[str, float] = {}
@@ -480,7 +472,7 @@ class DoraemonScheduler:
         return metrics
 
     # ------------------------------------------------------------------
-    # IS estimation (unnormalized, using stored per-episode log probs)
+    # IS estimation (unnormalized, denominator = prev_dist evaluated live)
     # ------------------------------------------------------------------
 
     def _estimate_success_rate(
@@ -491,8 +483,8 @@ class DoraemonScheduler:
     ) -> float:
         """Unnormalized IS estimate: (1/K) sum [p_current(xi_k) / p_ref(xi_k)] * sigma_k.
 
-        Uses ref_dist (typically prev_dist / current dist) as IS denominator instead
-        of stored per-episode log_probs.  Ring buffer data is mostly from recent
+        Uses ref_dist (typically prev_dist / current dist) as IS denominator; no
+        per-episode sampling log-prob is stored.  Ring buffer data is mostly from recent
         distributions close to ref_dist, so this is a good approximation and keeps
         IS weights near 1.0 -- matching the reference implementation which always
         uses current_distr as denominator with fresh data.
@@ -583,7 +575,7 @@ class DoraemonScheduler:
         """Maximize entropy subject to success >= alpha and KL trust region.
 
         Uses SLSQP with analytical gradients in log-space parameterization.
-        IS denominator: prev_dist (not stored log_probs) for ring buffer stability.
+        IS denominator: prev_dist (no per-episode log_probs are stored) for ring buffer stability.
         """
         prev_flat = prev_dist.get_flat_params()
         xi_unit, success_t, ref_lp = self._precompute_is_data(prev_flat, xi, success)
@@ -780,7 +772,6 @@ class DoraemonScheduler:
             "buffer_xi": self.buffer.xi[: self.buffer._count].clone(),
             "buffer_returns": self.buffer.returns[: self.buffer._count].clone(),
             "buffer_success": self.buffer.success[: self.buffer._count].clone(),
-            "buffer_log_probs": self.buffer.log_probs[: self.buffer._count].clone(),
             "buffer_write_idx": self.buffer._write_idx,
         }
 
@@ -805,7 +796,6 @@ class DoraemonScheduler:
         self.buffer.xi[:n] = state["buffer_xi"].to(self.device)
         self.buffer.returns[:n] = state["buffer_returns"].to(self.device)
         self.buffer.success[:n] = state["buffer_success"].to(self.device)
-        self.buffer.log_probs[:n] = state["buffer_log_probs"].to(self.device)
         self.buffer._count = n
         self.buffer._write_idx = state["buffer_write_idx"]
 

@@ -53,10 +53,10 @@ def _make_scheduler(step_interval=2, min_episodes=4, **cfg_kw):
 
 
 def _fill_buffer(sch, n=8):
-    xi, log_probs = sch.sample(n)
+    xi, _ = sch.sample(n)
     returns = torch.full((n,), 100.0)
     success = torch.ones(n)
-    sch.record_episodes(xi, returns, success, log_probs)
+    sch.record_episodes(xi, returns, success)
 
 
 def test_record_appends_on_update():
