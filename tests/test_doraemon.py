@@ -122,19 +122,19 @@ def _episode_batch(values, ndims=3):
     k = len(values)
     tags = torch.tensor(values, dtype=torch.float32)
     xi = tags.unsqueeze(1).expand(k, ndims).contiguous()
-    return xi, tags, tags, tags  # xi, returns, success, log_probs
+    return xi, tags, tags  # xi, returns, success
 
 
 def test_episode_buffer_ring_caps_and_keeps_newest():
     buf = EpisodeBuffer(capacity=4, ndims=3, device=DEVICE)
 
     buf.add(*_episode_batch([0.0, 1.0, 2.0]))  # 3 episodes
-    xi, returns, success, log_probs = buf.get_all()
+    xi, returns, success = buf.get_all()
     assert xi.shape[0] == 3
 
     # add 3 more -> total 6 written, capacity 4: oldest two (0,1) evicted
     buf.add(*_episode_batch([3.0, 4.0, 5.0]))
-    xi, returns, success, log_probs = buf.get_all()
+    xi, returns, success = buf.get_all()
     assert xi.shape[0] == 4  # capped at capacity
 
     # the four retained episodes are the newest: tags {2,3,4,5}
@@ -142,7 +142,7 @@ def test_episode_buffer_ring_caps_and_keeps_newest():
     assert retained == {2.0, 3.0, 4.0, 5.0}
 
     buf.clear()
-    xi, _, _, _ = buf.get_all()
+    xi, _, _ = buf.get_all()
     assert xi.shape[0] == 0
 
 

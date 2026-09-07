@@ -106,7 +106,10 @@ import time
 from datetime import datetime
 
 import gymnasium as gym
+import isaaclab_tasks  # noqa: F401
 import torch
+from isaaclab_tasks.utils import get_checkpoint_path
+from isaaclab_tasks.utils.hydra import hydra_task_config
 from rsl_rl.runners import DistillationRunner, OnPolicyRunner
 
 from isaaclab.envs import (
@@ -121,11 +124,7 @@ from isaaclab.utils.io import dump_yaml
 
 from isaaclab_rl.rsl_rl import RslRlBaseRunnerCfg, RslRlVecEnvWrapper
 
-import isaaclab_tasks  # noqa: F401
-
 import marinelab  # noqa: F401  # triggers marinelab gym.register() (overlay concern, after pxr exists)
-from isaaclab_tasks.utils import get_checkpoint_path
-from isaaclab_tasks.utils.hydra import hydra_task_config
 
 # import logger
 logger = logging.getLogger(__name__)
