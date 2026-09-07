@@ -8,6 +8,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+
+- **2026-09 code cleanup.** `EpisodeBuffer.log_probs`: a capacity-sized per-episode column
+  that no consumer ever read. Both importance-sampling paths recompute the denominator live
+  against `prev_dist`, and the two docstrings claiming otherwise were already recorded as
+  stale. `EpisodeBuffer.add` and `DoraemonScheduler.record_episodes` now take
+  `(xi, returns, success)`; `get_all()` returns a 3-tuple; `state_dict()` no longer emits
+  `buffer_log_probs`. An old checkpoint still loads. `sample()` still RETURNS the log-prob,
+  it is simply not stored.
+- `marinelab/utils/`, a two-file re-export shim for `marinelab.core.volume` marked deprecated
+  in its own docstring, with zero importers in either overlay.
+- `tests/test_thruster.py:205-313`, byte-identical to `:58-166`. Python kept only the later
+  definitions, so the first seven tests were never collected -- the pass count is unchanged
+  at 63, which is the proof that only shadowed definitions went.
+
 ### Changed
 
 - README restructured to standard OSS layout (hero/badges/features; core API reference
