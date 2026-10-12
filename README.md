@@ -5,7 +5,7 @@
 **A general-purpose underwater-vehicle (UUV) environment framework for NVIDIA Isaac Lab.**
 
 ![version](https://img.shields.io/badge/version-0.2.0-blue)
-![license](https://img.shields.io/badge/license-BSD--3--Clause-green)
+![license](https://img.shields.io/badge/license-MIT-green)
 ![python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![isaac-sim](https://img.shields.io/badge/Isaac%20Sim-5.1.0-76b900)
 
@@ -20,6 +20,19 @@ on it. Researchers import and configure the core models — hydrodynamics, thrus
 ocean current — through a stable public API, and build their own Isaac Lab tasks on top,
 the same way marinelab itself builds on Isaac Lab. The BlueROV2 task suite is the
 in-repo reference consumer; downstream research overlays are the intended users.
+
+## Companion to the ALBC paper
+
+marinelab is the simulation plant layer for *Underwater Mini-ROV Manipulation via Active
+Link Buoyancy Control with Sim-to-Real Reinforcement Learning*. It holds the plant
+models the paper's controller is trained against: the ALBC vehicle asset
+(`marinelab/assets/albc`, a two-link arm carrying a buoyant element), the Fossen
+hydrodynamics and thruster models, ocean current, and the DORAEMON
+domain-randomization curriculum (`marinelab/algorithms/doraemon.py`). The ALBC controller
+training and evaluation code lives in the research overlay
+[constrained-albc](https://github.com/luckkim123/constrained-albc), which imports
+marinelab; marinelab itself does not depend on it. A citation entry will be added here
+once the paper is published.
 
 ## Key Features
 
@@ -95,6 +108,33 @@ hydro.scale_parameters(env_ids, added_mass=(0.8, 1.2), linear_damping=(0.8, 1.2)
 
 `marinelab.tasks.bluerov.bluerov_env.BlueROVEnv` is the minimal end-to-end example of
 this pattern inside a `DirectRLEnv`.
+
+### Using the ALBC plant
+
+The ALBC vehicle (a two-link arm carrying a buoyant element on a cylindrical hull) is
+exported from `marinelab.assets`. It is described by three configs: `ALBC_CFG`
+(articulation, USD asset, arm actuators), `ALBCHydrodynamicsCfg` (hull) and
+`ALBCBuoyHydrodynamicsCfg` (buoyant element). The hull and the element each get their own
+`HydrodynamicsModel`, applied to separate bodies:
+
+```python
+from marinelab.assets import ALBC_CFG, ALBCHydrodynamicsCfg, ALBCBuoyHydrodynamicsCfg
+from marinelab.core import HydrodynamicsModel
+
+robot_cfg = ALBC_CFG.replace(prim_path="/World/envs/env_.*/Robot")  # in your env cfg
+
+hull_cfg, buoy_cfg = ALBCHydrodynamicsCfg(), ALBCBuoyHydrodynamicsCfg()
+hull = HydrodynamicsModel(num_envs, device, hull_cfg, dt=dt, current=current)
+buoy = HydrodynamicsModel(num_envs, device, buoy_cfg, dt=dt, current=current)
+# per step: hull.compute_forces(...) on body `hull_cfg.body_name`,
+#           buoy.compute_forces(...) on body `buoy_cfg.body_name`
+```
+
+The values in these configs are nominal plant parameters. Domain-randomization ranges and
+the controller are defined in the research overlay
+[constrained-albc](https://github.com/luckkim123/constrained-albc), whose environment is
+the full worked example of this wiring (`ALBC_JOINT_NAMES`, `ALBC_LINK1_LENGTH` and the
+other `ALBC_*` constants are exported for it).
 
 ## Core API
 
@@ -196,7 +236,7 @@ the buoyancy force automatically.
 marinelab/
 ├── marinelab/
 │   ├── core/        # reusable physics — the framework API (stable)
-│   ├── assets/      # UUV configs + USD meshes (Git LFS)
+│   ├── assets/      # UUV configs + USD meshes (Git LFS): albc/, bluerov/
 │   ├── tasks/       # example environments built on core (bluerov is the reference)
 │   └── algorithms/  # DORAEMON domain-randomization engine
 └── docs/            # architecture + installation
@@ -213,4 +253,4 @@ see [CONTRIBUTING.md](CONTRIBUTING.md). Changelog: [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-BSD-3-Clause — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Files derived from Isaac Lab keep its BSD-3-Clause license; the notice is reproduced in `LICENSE`.

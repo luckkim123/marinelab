@@ -195,5 +195,3 @@ def alive_bonus(
     num_envs = robot.data.root_pos_w.shape[0]
     device = robot.data.root_pos_w.device
     return torch.ones(num_envs, device=device)
-
-

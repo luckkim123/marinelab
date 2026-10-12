@@ -79,7 +79,7 @@ correct.
 
 ## Path B — Docker
 
-Use this path for reproducible junior deployments or CI.
+Use this path for reproducible deployments or CI.
 
 ### Overview
 

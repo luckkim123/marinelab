@@ -8,14 +8,14 @@ there are no upward dependencies.
 
 ```
 +---------------------------------------------------------------------+
-|  constrained-albc  (private research overlay)                       |
+|  constrained-albc  (research overlay for the ALBC paper)            |
 |  ConstraintTRPO ALBC (attitude + full-DOF) + TDC + student          |
 |  distillation + analysis                                            |
 |  pip install -e constrained-albc   (on top of marinelab)            |
 +----------------------------------+----------------------------------+
                                    |  import marinelab
 +----------------------------------v----------------------------------+
-|  marinelab  (this repo; public junior deploy layer)                 |
+|  marinelab  (this repo; general-purpose plant layer)                |
 |  BlueROV environments + UUV assets (Git LFS) + marine physics       |
 |  pip install -e marinelab         (on top of isaaclab)              |
 +----------------------------------+----------------------------------+
@@ -75,7 +75,7 @@ framework API — import from there, not from `tasks/`.
 | `tasks/bluerov/bluerov_env_cfg.py` | Base `@configclass` config (Isaac Lab's environment-config decorator) |
 | `tasks/bluerov/hover_env_cfg.py` | Hover task config |
 | `tasks/bluerov/attitude_env_cfg.py` | Attitude task config |
-| `tasks/bluerov/agents/` | RL agent configs (rsl_rl, skrl, sb3, rl_games) |
+| `tasks/bluerov/agents/` | RL agent config (rsl_rl PPO runner) |
 | `tasks/bluerov/mdp/` | Domain randomization events |
 | `tasks/bluerov/rewards/` | Reward terms and reward manager |
 | `tasks/bluerov/tasks/` | Task wrappers (`hover_task`, `attitude_task`) |
@@ -112,7 +112,8 @@ USD load errors at simulation startup.
 
 ## Constrained-albc relationship
 
-`constrained-albc` is a private overlay that sits above marinelab. It imports:
+`constrained-albc` is the research overlay that sits above marinelab and holds the
+ALBC controller training and evaluation code. It imports:
 
 - `marinelab.core` — the Fossen model and thruster dynamics
 - `marinelab.assets` — UUV configurations
@@ -120,5 +121,4 @@ USD load errors at simulation startup.
 
 There are zero cross-imports in the other direction: marinelab has no
 references to constrained-albc code. This clean separation means marinelab
-can be deployed to juniors independently, without exposing any private
-research code.
+can be installed and used on its own, without the research overlay.

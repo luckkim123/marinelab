@@ -45,9 +45,9 @@ class DomainRandomizationCfg:
     position_z_range: tuple[float, float] = (1.5, 2.5)
 
     # Initial orientation randomization range (radians)
-    roll_range: tuple[float, float] = (-0.628, 0.628)    # +/-36 degrees
-    pitch_range: tuple[float, float] = (-0.628, 0.628)   # +/-36 degrees
-    yaw_range: tuple[float, float] = (0.0, 6.283)        # 0-360 degrees
+    roll_range: tuple[float, float] = (-0.628, 0.628)  # +/-36 degrees
+    pitch_range: tuple[float, float] = (-0.628, 0.628)  # +/-36 degrees
+    yaw_range: tuple[float, float] = (0.0, 6.283)  # 0-360 degrees
 
     # Hydrodynamic parameter scale ranges (multipliers applied to base values)
     added_mass_scale: tuple[float, float] = (0.5, 1.0)

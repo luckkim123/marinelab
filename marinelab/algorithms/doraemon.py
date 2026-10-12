@@ -314,8 +314,9 @@ class DoraemonScheduler:
         if dr_cfg is not None and param_defs is not None:
             specs = build_param_specs(dr_cfg, param_defs, nominal_overrides)
         elif param_defs is not None:
-            specs = [ParamSpec(n, lo, hi, (nominal_overrides or {}).get(n, (lo + hi) / 2.0))
-                     for n, _f, lo, hi in param_defs]
+            specs = [
+                ParamSpec(n, lo, hi, (nominal_overrides or {}).get(n, (lo + hi) / 2.0)) for n, _f, lo, hi in param_defs
+            ]
         else:
             raise ValueError(
                 "DoraemonScheduler requires param_defs (and usually dr_cfg). The engine is "
@@ -351,8 +352,12 @@ class DoraemonScheduler:
         logger.info(
             "[DORAEMON] Initialized: alpha=%.2f, kl_ub=%.4f, performance_lb=%.1f, "
             "%d parameters, concentration=%.0f, hard_constraint=%s",
-            cfg.alpha, cfg.kl_ub, cfg.performance_lb, ndims,
-            cfg.init_concentration, cfg.hard_performance_constraint,
+            cfg.alpha,
+            cfg.kl_ub,
+            cfg.performance_lb,
+            ndims,
+            cfg.init_concentration,
+            cfg.hard_performance_constraint,
         )
 
     def sample(self, n: int) -> tuple[torch.Tensor, torch.Tensor]:
@@ -841,14 +846,11 @@ class CurriculumReplayer:
             raise ValueError("CurriculumReplayer: recording missing param_names/param_bounds.")
         if len(names) != len(param_specs):
             raise ValueError(
-                f"CurriculumReplayer: recording has {len(names)} dims but config expects "
-                f"{len(param_specs)}."
+                f"CurriculumReplayer: recording has {len(names)} dims but config expects {len(param_specs)}."
             )
         for spec, name, (lo, hi) in zip(param_specs, names, bounds):
             if spec.name != name:
-                raise ValueError(
-                    f"CurriculumReplayer: param name mismatch at dim: '{name}' vs '{spec.name}'."
-                )
+                raise ValueError(f"CurriculumReplayer: param name mismatch at dim: '{name}' vs '{spec.name}'.")
             if abs(spec.min_bound - lo) > 1e-9 or abs(spec.max_bound - hi) > 1e-9:
                 raise ValueError(
                     f"CurriculumReplayer: bounds mismatch for '{name}': "
@@ -876,7 +878,8 @@ class CurriculumReplayer:
         if it > self._last_iter and not self._warned_past_end:
             logger.warning(
                 "[REPLAY] iteration %d past recorded end %d; holding final distribution.",
-                it, self._last_iter,
+                it,
+                self._last_iter,
             )
             self._warned_past_end = True
         self._apply(it)

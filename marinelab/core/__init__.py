@@ -1,4 +1,4 @@
-# Copyright (c) 2026. SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 Seungmin Kim. SPDX-License-Identifier: MIT
 """marinelab.core: general-purpose UUV simulation framework.
 
 Stable, reusable physics + parameter + ocean-current API. Researcher code

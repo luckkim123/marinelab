@@ -47,9 +47,7 @@ def _make_scheduler(step_interval=2, min_episodes=4, **cfg_kw):
         init_concentration=30.0,
         **cfg_kw,
     )
-    return DoraemonScheduler(
-        cfg, torch.device("cpu"), dr_cfg=_FakeDRCfg(), param_defs=_PARAM_DEFS
-    )
+    return DoraemonScheduler(cfg, torch.device("cpu"), dr_cfg=_FakeDRCfg(), param_defs=_PARAM_DEFS)
 
 
 def _fill_buffer(sch, n=8):
@@ -108,10 +106,12 @@ def _recording(entries):
 
 
 def test_replay_holds_last():
-    rec = _recording([
-        {"iter": 0, "a": [10.0, 10.0], "b": [10.0, 10.0]},
-        {"iter": 4, "a": [20.0, 20.0], "b": [5.0, 5.0]},
-    ])
+    rec = _recording(
+        [
+            {"iter": 0, "a": [10.0, 10.0], "b": [10.0, 10.0]},
+            {"iter": 4, "a": [20.0, 20.0], "b": [5.0, 5.0]},
+        ]
+    )
     rep = CurriculumReplayer(rec, _specs(), torch.device("cpu"))
 
     rep.step(iteration=0)

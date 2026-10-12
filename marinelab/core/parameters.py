@@ -1,4 +1,4 @@
-# Copyright (c) 2026. SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 Seungmin Kim. SPDX-License-Identifier: MIT
 """Hydrodynamic parameter bundle and base-parameter cache.
 
 HydroParams is a named bundle of per-env parameter tensors used by both the

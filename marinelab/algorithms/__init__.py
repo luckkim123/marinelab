@@ -1,4 +1,4 @@
-# Copyright (c) 2026. SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 Seungmin Kim. SPDX-License-Identifier: MIT
 """marinelab.algorithms: general-purpose RL/DR algorithms reusable across UUV research.
 
 DORAEMON (Domain Randomization via Entropy Maximization, Tiboni et al. ICLR 2024) is a

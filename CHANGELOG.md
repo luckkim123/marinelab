@@ -8,61 +8,6 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Removed
-
-- **2026-09 code cleanup.** `EpisodeBuffer.log_probs`: a capacity-sized per-episode column
-  that no consumer ever read. Both importance-sampling paths recompute the denominator live
-  against `prev_dist`, and the two docstrings claiming otherwise were already recorded as
-  stale. `EpisodeBuffer.add` and `DoraemonScheduler.record_episodes` now take
-  `(xi, returns, success)`; `get_all()` returns a 3-tuple; `state_dict()` no longer emits
-  `buffer_log_probs`. An old checkpoint still loads. `sample()` still RETURNS the log-prob,
-  it is simply not stored.
-- `marinelab/utils/`, a two-file re-export shim for `marinelab.core.volume` marked deprecated
-  in its own docstring, with zero importers in either overlay.
-- `tests/test_thruster.py:205-313`, byte-identical to `:58-166`. Python kept only the later
-  definitions, so the first seven tests were never collected -- the pass count is unchanged
-  at 63, which is the proof that only shadowed definitions went.
-
-### Changed
-
-- README restructured to standard OSS layout (hero/badges/features; core API reference
-  in a collapsible section); `docs/architecture.md` un-staled (P5 docs pass, 2026-07-12).
-- `.gitignore` covers session/tool state dirs (`.claude/`, `.ruff_cache/`, `.omx/`,
-  `.trash/`).
-
-### Fixed
-
-- Thruster first-order lag ran at half speed (P4 sim-fix, 2026-07-12): `bluerov_env.py`
-  passed `physics_dt` to `ThrusterModel.apply_dynamics` from `_pre_physics_step`, which runs
-  once per env step -- elapsed time between calls is `step_dt = physics_dt * decimation`
-  (decimation=2 here), so effective T200 time constants were 2x the configured values. Now
-  passes `step_dt`. Same root cause fixed in constrained-albc (4x there, decimation=4).
-- `update_physx_state` caller in `bluerov_env.py` passed the full body tensor, silently
-  relying on "root == body index 0" inside the `(num_envs, num_bodies, 6)` branch; it now
-  passes `body_com_acc_w[:, self._body_id[0], :]` explicitly. Byte-identical while the hydro
-  body is index 0.
-- DORAEMON `--resume` device-mismatch crash (P3 hygiene, 2026-07-12):
-  `DoraemonScheduler.load_state_dict` now restores `dist._a`/`dist._b` with
-  `.double().cpu()`. A checkpoint loaded with a GPU map_location previously left them on
-  CUDA while `_mins`/`_maxs`/`_ranges` stayed CPU (the class invariant), crashing
-  `entropy()`/`get_flat_params()` on the first step after resume.
-
-### Changed
-
-- ALBC asset: `velocity_limit_sim` 6.28 -> 3.1 rad/s (P4 sim-fix, 2026-07-12; measured
-  XW540-T260 no-load plateau, onboard 2026-07-06). Paired with the constrained-albc
-  `arm_joint_vel` soft-threshold move 4.189 -> 2.8 rad/s in the same batch to keep the soft
-  constraint inside the hard cap (else it can never fire -- dead constraint).
-- Added `[tool.ruff]`/`[tool.pyright]` to pyproject.toml (line-length 120, py310, Google
-  docstrings, marinelab first-party isort) so the format hook is no longer a no-op here;
-  applied the safe autofix subset (isort ordering, one unused import, return-style).
-
-### Removed
-
-- Deprecated `marinelab.physics` shim (pure re-export of `marinelab.core`). All in-repo
-  and downstream (constrained-albc) importers migrated to `marinelab.core`;
-  CONTRIBUTING.md/README.md guidance updated.
-
 ### Added
 
 - DORAEMON curriculum record & replay (`marinelab.algorithms.doraemon`):
@@ -76,6 +21,61 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     Used to give comparison baselines the cmdp run's exact DR difficulty timeline.
   - `DoraemonCfg.replay_curriculum_path` config field selects replay mode.
   - Tests: `tests/test_doraemon_replay.py`.
+
+### Changed
+
+- ALBC asset: `velocity_limit_sim` 6.28 -> 3.1 rad/s (measured XW540-T260 no-load
+  plateau), later 2.40 rad/s to match the speed cap of the deployed driver. Paired with
+  the constrained-albc `arm_joint_vel` soft-threshold move 4.189 -> 2.8 rad/s to keep the
+  soft constraint inside the hard cap (else it can never fire -- dead constraint).
+- README restructured to standard OSS layout (hero/badges/features; core API reference
+  in a collapsible section); `docs/architecture.md` brought up to date.
+- Added `[tool.ruff]`/`[tool.pyright]` to pyproject.toml (line-length 120, py310, Google
+  docstrings, marinelab first-party isort) so the format hook is no longer a no-op here;
+  applied the safe autofix subset (isort ordering, one unused import, return-style).
+- `.gitignore` covers local tool and editor state.
+- License changed from BSD-3-Clause to MIT (Copyright (c) 2026 Seungmin Kim). The Isaac
+  Lab BSD-3-Clause notice is kept in `LICENSE` for files that carry the Isaac Lab
+  copyright header.
+- Documentation describes marinelab as a general-purpose plant layer used by research
+  overlays such as constrained-albc.
+
+### Removed
+
+- `EpisodeBuffer.log_probs`: a capacity-sized per-episode column that no consumer ever
+  read. Both importance-sampling paths recompute the denominator live against
+  `prev_dist`, and the two docstrings claiming otherwise were already recorded as
+  stale. `EpisodeBuffer.add` and `DoraemonScheduler.record_episodes` now take
+  `(xi, returns, success)`; `get_all()` returns a 3-tuple; `state_dict()` no longer emits
+  `buffer_log_probs`. An old checkpoint still loads. `sample()` still RETURNS the log-prob,
+  it is simply not stored.
+- `marinelab/utils/`, a two-file re-export shim for `marinelab.core.volume` marked deprecated
+  in its own docstring, with zero importers in either overlay.
+- `tests/test_thruster.py:205-313`, byte-identical to `:58-166`. Python kept only the later
+  definitions, so the first seven tests were never collected -- the pass count is unchanged
+  at 63, which is the proof that only shadowed definitions went.
+- Deprecated `marinelab.physics` shim (pure re-export of `marinelab.core`). All in-repo
+  and downstream (constrained-albc) importers migrated to `marinelab.core`;
+  CONTRIBUTING.md/README.md guidance updated.
+- Unused assets and configs: the `fixed_usd` BlueROV copy (22 MB), the rl_games, sb3 and
+  skrl agent configs, and code-graph tool files.
+
+### Fixed
+
+- Thruster first-order lag ran at half speed: `bluerov_env.py` passed `physics_dt` to
+  `ThrusterModel.apply_dynamics` from `_pre_physics_step`, which runs once per env step --
+  elapsed time between calls is `step_dt = physics_dt * decimation` (decimation=2 here),
+  so effective T200 time constants were 2x the configured values. Now passes `step_dt`.
+  Same root cause fixed in constrained-albc (4x there, decimation=4).
+- `update_physx_state` caller in `bluerov_env.py` passed the full body tensor, silently
+  relying on "root == body index 0" inside the `(num_envs, num_bodies, 6)` branch; it now
+  passes `body_com_acc_w[:, self._body_id[0], :]` explicitly. Byte-identical while the hydro
+  body is index 0.
+- DORAEMON `--resume` device-mismatch crash:
+  `DoraemonScheduler.load_state_dict` now restores `dist._a`/`dist._b` with
+  `.double().cpu()`. A checkpoint loaded with a GPU map_location previously left them on
+  CUDA while `_mins`/`_maxs`/`_ranges` stayed CPU (the class invariant), crashing
+  `entropy()`/`get_flat_params()` on the first step after resume.
 
 ---
 
@@ -182,4 +182,4 @@ keep working unchanged.
 - Docker deploy files: `docker/Dockerfile` and `docker/docker-compose.yaml`.
 - Documentation: `README.md`, `docs/installation.md`, `docs/architecture.md`,
   `CONTRIBUTING.md`.
-- BSD-3-Clause `LICENSE` (inherited from upstream Isaac Lab).
+- `LICENSE` (BSD-3-Clause, inherited from upstream Isaac Lab; see Unreleased for the MIT relicense).

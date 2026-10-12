@@ -3,16 +3,24 @@ __pycache__/
 *.egg-info/
 .venv/
 logs/
+
+# Local tool and editor state
 .omc/
-
-# session/tool state dirs — never commit
 .claude/
-.ruff_cache/
 .omx/
+.ruff_cache/
 .trash/
-
-# --- Code-graph indexes (regenerated from source; .graphifyignore stays tracked) ---
 .graphify/
 graphify-out/
+.graphifyignore
 .code-review-graph/
+.code-review-graphignore
 .tokensave/
+.hq/
+.omp/
+.oms/
+.omd/
+.sp/
+.superpowers/
+.remember/
+.harness.lock/

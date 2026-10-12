@@ -1,4 +1,4 @@
-# Copyright (c) 2026. SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 Seungmin Kim. SPDX-License-Identifier: MIT
 """Ocean current as a standalone, injectable component.
 
 A single OceanCurrent instance can be shared by multiple HydrodynamicsModel

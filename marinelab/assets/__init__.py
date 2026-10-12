@@ -1,4 +1,4 @@
-# Copyright (c) 2026. SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 Seungmin Kim. SPDX-License-Identifier: MIT
 """UUV robot configurations (BlueROV, ALBC) and base hydro/thruster cfgs."""
 
 from .albc import (
