@@ -203,7 +203,9 @@ ALBC_CFG = ArticulationCfg(
             stiffness=100.0,  # Kp: w_n=57.7 rad/s with J~0.15 kg*m^2
             damping=3.0,  # Kd: damping ratio ~0.7 (near critically damped)
             effort_limit_sim=13.0,  # Nm, PhysX hard cap (above motor stall torque 9.5 Nm)
-            velocity_limit_sim=2.40,  # rad/s, PhysX hard cap = deployed driver cap OPERATING_VELOCITY=100 (vault finding/145: +2.400/-2.406 measured); the motor no-load plateau 3.1 (2026-07-06) is above what the driver allows. Candidate B, 2026-09-07.
+            # rad/s, PhysX hard cap = deployed driver speed cap (+2.400/-2.406 measured); the motor
+            # no-load plateau (3.1) is above what the driver allows.
+            velocity_limit_sim=2.40,
         ),
     },
 )
