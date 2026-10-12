@@ -21,6 +21,19 @@ ocean current — through a stable public API, and build their own Isaac Lab tas
 the same way marinelab itself builds on Isaac Lab. The BlueROV2 task suite is the
 in-repo reference consumer; downstream research overlays are the intended users.
 
+## Companion to the ALBC paper
+
+marinelab is the simulation plant layer for *Underwater Mini-ROV Manipulation via Active
+Link Buoyancy Control with Sim-to-Real Reinforcement Learning*. It holds the plant
+models the paper's controller is trained against: the ALBC vehicle asset
+(`marinelab/assets/albc`, a two-link arm carrying a buoyant element), the Fossen
+hydrodynamics and thruster models, ocean current, and the DORAEMON
+domain-randomization curriculum (`marinelab/algorithms/doraemon.py`). The ALBC controller
+training and evaluation code lives in the research overlay
+[constrained-albc](https://github.com/luckkim123/constrained-albc), which imports
+marinelab; marinelab itself does not depend on it. A citation entry will be added here
+once the paper is published.
+
 ## Key Features
 
 - **Fossen hydrodynamics core**: 6-DOF added mass, linear/quadratic damping, and buoyancy/restoring forces with per-environment parameter buffers.
@@ -196,7 +209,7 @@ the buoyancy force automatically.
 marinelab/
 ├── marinelab/
 │   ├── core/        # reusable physics — the framework API (stable)
-│   ├── assets/      # UUV configs + USD meshes (Git LFS)
+│   ├── assets/      # UUV configs + USD meshes (Git LFS): albc/, bluerov/
 │   ├── tasks/       # example environments built on core (bluerov is the reference)
 │   └── algorithms/  # DORAEMON domain-randomization engine
 └── docs/            # architecture + installation
