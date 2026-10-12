@@ -16,3 +16,11 @@ graphify-out/
 .code-review-graph/
 .code-review-graphignore
 .tokensave/
+.hq/
+.omp/
+.oms/
+.omd/
+.sp/
+.superpowers/
+.remember/
+.harness.lock/
