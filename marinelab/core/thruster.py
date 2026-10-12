@@ -64,9 +64,7 @@ class ThrusterModel:
         self._setup_buffers()
 
         # Setup allocation matrix
-        self._allocation_matrix = torch.tensor(
-            cfg.allocation_matrix, dtype=torch.float32, device=device
-        )
+        self._allocation_matrix = torch.tensor(cfg.allocation_matrix, dtype=torch.float32, device=device)
 
         # Precompute time-constant tensors once (avoid per-step allocation).
         self._tau_up_scalar = torch.tensor(cfg.time_constant_up, dtype=torch.float32, device=device)
@@ -277,7 +275,6 @@ class ThrusterModel:
         self._time_constant_down[env_ids] = self.cfg.time_constant_down * time_scale
 
         mt_scale = (
-            torch.rand(num_envs, device=self.device) * (max_thrust_scale[1] - max_thrust_scale[0])
-            + max_thrust_scale[0]
+            torch.rand(num_envs, device=self.device) * (max_thrust_scale[1] - max_thrust_scale[0]) + max_thrust_scale[0]
         )
         self._max_thrust[env_ids] = self.cfg.max_thrust * mt_scale

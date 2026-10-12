@@ -202,6 +202,8 @@ def test_thrust_curve_sign_and_bounds_preserved():
     m._state = torch.full((1, 6), -1.0)
     f, _ = m.compute_wrench()
     assert abs(f[0, 2].item() - (-80.0)) < 1e-3
+
+
 # ============================================================================
 # Combined path: nonlinear thrust curve ON + fault ON (order lock)
 # ============================================================================
@@ -283,6 +285,6 @@ def test_actuation_noise_on_perturbs_and_resamples():
 def test_actuation_noise_independent_of_dr_and_fault():
     # Noise on, DR off, fault off -> DR/fault buffers stay None.
     m = ThrusterModel(_NoiseCfg(), num_envs=4, device="cpu", enable_actuation_noise=True)
-    assert m._thrust_coeff is None        # DR buffer not allocated
-    assert m._thruster_health is None     # fault buffer not allocated
+    assert m._thrust_coeff is None  # DR buffer not allocated
+    assert m._thruster_health is None  # fault buffer not allocated
     assert m._act_noise_std == 0.1
