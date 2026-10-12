@@ -109,6 +109,33 @@ hydro.scale_parameters(env_ids, added_mass=(0.8, 1.2), linear_damping=(0.8, 1.2)
 `marinelab.tasks.bluerov.bluerov_env.BlueROVEnv` is the minimal end-to-end example of
 this pattern inside a `DirectRLEnv`.
 
+### Using the ALBC plant
+
+The ALBC vehicle (a two-link arm carrying a buoyant element on a cylindrical hull) is
+exported from `marinelab.assets`. It is described by three configs: `ALBC_CFG`
+(articulation, USD asset, arm actuators), `ALBCHydrodynamicsCfg` (hull) and
+`ALBCBuoyHydrodynamicsCfg` (buoyant element). The hull and the element each get their own
+`HydrodynamicsModel`, applied to separate bodies:
+
+```python
+from marinelab.assets import ALBC_CFG, ALBCHydrodynamicsCfg, ALBCBuoyHydrodynamicsCfg
+from marinelab.core import HydrodynamicsModel
+
+robot_cfg = ALBC_CFG.replace(prim_path="/World/envs/env_.*/Robot")  # in your env cfg
+
+hull_cfg, buoy_cfg = ALBCHydrodynamicsCfg(), ALBCBuoyHydrodynamicsCfg()
+hull = HydrodynamicsModel(num_envs, device, hull_cfg, dt=dt, current=current)
+buoy = HydrodynamicsModel(num_envs, device, buoy_cfg, dt=dt, current=current)
+# per step: hull.compute_forces(...) on body `hull_cfg.body_name`,
+#           buoy.compute_forces(...) on body `buoy_cfg.body_name`
+```
+
+The values in these configs are nominal plant parameters. Domain-randomization ranges and
+the controller are defined in the research overlay
+[constrained-albc](https://github.com/luckkim123/constrained-albc), whose environment is
+the full worked example of this wiring (`ALBC_JOINT_NAMES`, `ALBC_LINK1_LENGTH` and the
+other `ALBC_*` constants are exported for it).
+
 ## Core API
 
 All core models are importable from `marinelab.core`

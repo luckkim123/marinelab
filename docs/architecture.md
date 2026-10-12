@@ -75,7 +75,7 @@ framework API — import from there, not from `tasks/`.
 | `tasks/bluerov/bluerov_env_cfg.py` | Base `@configclass` config (Isaac Lab's environment-config decorator) |
 | `tasks/bluerov/hover_env_cfg.py` | Hover task config |
 | `tasks/bluerov/attitude_env_cfg.py` | Attitude task config |
-| `tasks/bluerov/agents/` | RL agent configs (rsl_rl, skrl, sb3, rl_games) |
+| `tasks/bluerov/agents/` | RL agent config (rsl_rl PPO runner) |
 | `tasks/bluerov/mdp/` | Domain randomization events |
 | `tasks/bluerov/rewards/` | Reward terms and reward manager |
 | `tasks/bluerov/tasks/` | Task wrappers (`hover_task`, `attitude_task`) |
