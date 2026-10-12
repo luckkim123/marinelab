@@ -5,7 +5,7 @@
 **A general-purpose underwater-vehicle (UUV) environment framework for NVIDIA Isaac Lab.**
 
 ![version](https://img.shields.io/badge/version-0.2.0-blue)
-![license](https://img.shields.io/badge/license-BSD--3--Clause-green)
+![license](https://img.shields.io/badge/license-MIT-green)
 ![python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![isaac-sim](https://img.shields.io/badge/Isaac%20Sim-5.1.0-76b900)
 
@@ -213,4 +213,4 @@ see [CONTRIBUTING.md](CONTRIBUTING.md). Changelog: [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-BSD-3-Clause — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Files derived from Isaac Lab keep its BSD-3-Clause license; the notice is reproduced in `LICENSE`.

@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026. SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers.
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
 """marinelab train entry for the public marine-vehicle environments (BlueROV, ...).
 
 isaaclab stays a pristine upstream fork: its train.py only imports ``isaaclab_tasks``
